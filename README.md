@@ -50,17 +50,17 @@ FunASR has open-sourced a large number of pre-trained models on industrial data.
 (Note: 🤗 represents the Huggingface model zoo link, ⭐ represents the ModelScope model zoo link)
 
 
-|                                                                              Model Name                                                                              |                                Task Details                                 |          Training Date           | Parameters |
-|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------:|:--------------------------------:|:----------:|
-| <nobr>paraformer-zh ([⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch/summary)  [🤗]() )</nobr> |             speech recognition, with timestamps, non-streaming              |      60000 hours, Mandarin       |    220M    |
-|             <nobr>paraformer-zh-spk ( [⭐](https://modelscope.cn/models/damo/speech_paraformer-large-vad-punc-spk_asr_nat-zh-cn/summary)  [🤗]() )</nobr>             | speech recognition with speaker diarization, with timestamps, non-streaming |      60000 hours, Mandarin       |    220M    |
-|    <nobr>paraformer-zh-online ( [⭐](https://modelscope.cn/models/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online/summary) [🤗]() )</nobr>     |                        speech recognition, streaming                        |      60000 hours, Mandarin       |    220M    |
-|      <nobr>paraformer-en ( [⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-en-16k-common-vocab10020/summary) [🤗]() )</nobr>      |             speech recognition, with timestamps, non-streaming              |       50000 hours, English       |    220M    |
-|                                                            <nobr>paraformer-en-spk ([🤗]() [⭐]() )</nobr>                                                            |         speech recognition with speaker diarization, non-streaming          |       50000 hours, English       |    220M    |
-|                  <nobr>conformer-en ( [⭐](https://modelscope.cn/models/damo/speech_conformer_asr-en-16k-vocab4199-pytorch/summary) [🤗]() )</nobr>                   |                      speech recognition, non-streaming                      |       50000 hours, English       |    220M    |
-|                  <nobr>ct-punc ( [⭐](https://modelscope.cn/models/damo/punc_ct-transformer_cn-en-common-vocab471067-large/summary) [🤗]() )</nobr>                   |                           punctuation restoration                           |    100M, Mandarin and English    |    1.1G    | 
-|                       <nobr>fsmn-vad ( [⭐](https://modelscope.cn/models/damo/speech_fsmn_vad_zh-cn-16k-common-pytorch/summary) [🤗]() )</nobr>                       |                          voice activity detection                           | 5000 hours, Mandarin and English |    0.4M    | 
-|                       <nobr>fa-zh ( [⭐](https://modelscope.cn/models/damo/speech_timestamp_prediction-v1-16k-offline/summary) [🤗]() )</nobr>                        |                            timestamp prediction                             |       5000 hours, Mandarin       |    38M     | 
+|                                                                             Model Name                                                                             |                                Task Details                                 |          Training Date           | Parameters |
+|:------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------:|:--------------------------------:|:----------:|
+|    paraformer-zh <br> ([⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch/summary)  [🤗]() )    |             speech recognition, with timestamps, non-streaming              |      60000 hours, Mandarin       |    220M    |
+|                paraformer-zh-spk <br> ( [⭐](https://modelscope.cn/models/damo/speech_paraformer-large-vad-punc-spk_asr_nat-zh-cn/summary)  [🤗]() )                | speech recognition with speaker diarization, with timestamps, non-streaming |      60000 hours, Mandarin       |    220M    |
+| <nobr>paraformer-zh-online <br> ( [⭐](https://modelscope.cn/models/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online/summary) [🤗]() )</nobr> |                        speech recognition, streaming                        |      60000 hours, Mandarin       |    220M    |
+|         paraformer-en <br> ( [⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-en-16k-common-vocab10020/summary) [🤗]() )         |             speech recognition, with timestamps, non-streaming              |       50000 hours, English       |    220M    |
+|                                                               paraformer-en-spk <br> ([⭐]()[🤗]()  )                                                               |         speech recognition with speaker diarization, non-streaming          |               Undo               |    Undo    |
+|                     conformer-en <br> ( [⭐](https://modelscope.cn/models/damo/speech_conformer_asr-en-16k-vocab4199-pytorch/summary) [🤗]() )                      |                      speech recognition, non-streaming                      |       50000 hours, English       |    220M    |
+|                     ct-punc <br> ( [⭐](https://modelscope.cn/models/damo/punc_ct-transformer_cn-en-common-vocab471067-large/summary) [🤗]() )                      |                           punctuation restoration                           |    100M, Mandarin and English    |    1.1G    | 
+|                          fsmn-vad <br> ( [⭐](https://modelscope.cn/models/damo/speech_fsmn_vad_zh-cn-16k-common-pytorch/summary) [🤗]() )                          |                          voice activity detection                           | 5000 hours, Mandarin and English |    0.4M    | 
+|                          fa-zh <br> ( [⭐](https://modelscope.cn/models/damo/speech_timestamp_prediction-v1-16k-offline/summary) [🤗]() )                           |                            timestamp prediction                             |       5000 hours, Mandarin       |    38M     | 
 
 
 
@@ -76,6 +76,15 @@ Quick start for new users（[tutorial](https://alibaba-damo-academy.github.io/Fu
 FunASR supports inference and fine-tuning of models trained on industrial data for tens of thousands of hours. For more details, please refer to [modelscope_egs](https://alibaba-damo-academy.github.io/FunASR/en/modelscope_pipeline/quick_start.html). It also supports training and fine-tuning of models on academic standard datasets. For more information, please refer to [egs](https://alibaba-damo-academy.github.io/FunASR/en/academic_recipe/asr_recipe.html).
 
 Below is a quick start tutorial. Test audio files ([Mandarin](https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/test_audio/vad_example.wav), [English]()).
+
+### Command-line usage
+
+```shell
+funasr --model paraformer-zh asr_example_zh.wav
+```
+
+Notes: Support recognition of single audio file, as well as file list in Kaldi-style wav.scp format: `wav_id wav_pat`
+
 ### Speech Recognition (Non-streaming)
 ```python
 from funasr import infer

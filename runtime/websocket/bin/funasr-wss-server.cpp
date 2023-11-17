@@ -4,12 +4,6 @@
  */
 /* 2022-2023 by zhaomingwork */
 
-// io server
-// Usage:funasr-wss-server  [--model_thread_num <int>] [--decoder_thread_num <int>]
-//                    [--io_thread_num <int>] [--port <int>] [--listen_ip
-//                    <string>] [--punc-quant <string>] [--punc-dir <string>]
-//                    [--vad-quant <string>] [--vad-dir <string>] [--quantize
-//                    <string>] --model-dir <string> [--] [--version] [-h]
 #include "websocket-server.h"
 #ifdef _WIN32
 #include "win_func.h"
@@ -425,7 +419,7 @@ int main(int argc, char* argv[]) {
     funasr::ExtractHws(hotword_path, hws_map_);
 
     bool is_ssl = false;
-    if (!s_certfile.empty()) {
+    if (!s_certfile.empty() && access(s_certfile.c_str(), F_OK) == 0) {
       is_ssl = true;
     }
 
@@ -440,6 +434,8 @@ int main(int argc, char* argv[]) {
 
     server server_;  // server for websocket
     wss_server wss_server_;
+    server* server = nullptr;
+    wss_server* wss_server = nullptr;
     if (is_ssl) {
       LOG(INFO)<< "SSL is opened!";
       wss_server_.init_asio(&io_server);  // init asio
@@ -448,11 +444,7 @@ int main(int argc, char* argv[]) {
 
       // list on port for accept
       wss_server_.listen(asio::ip::address::from_string(s_listen_ip), s_port);
-      WebSocketServer websocket_srv(
-          io_decoder, is_ssl, nullptr, &wss_server_, s_certfile,
-          s_keyfile);  // websocket server for asr engine
-      websocket_srv.initAsr(model_path, s_model_thread_num);  // init asr model
-
+      wss_server = &wss_server_;
     } else {
       LOG(INFO)<< "SSL is closed!";
       server_.init_asio(&io_server);  // init asio
@@ -461,11 +453,14 @@ int main(int argc, char* argv[]) {
 
       // list on port for accept
       server_.listen(asio::ip::address::from_string(s_listen_ip), s_port);
-      WebSocketServer websocket_srv(
-          io_decoder, is_ssl, &server_, nullptr, s_certfile,
-          s_keyfile);  // websocket server for asr engine
-      websocket_srv.initAsr(model_path, s_model_thread_num);  // init asr model
+      server = &server_;
     }
+
+
+    WebSocketServer websocket_srv(
+        io_decoder, is_ssl, server, wss_server, s_certfile,
+        s_keyfile);  // websocket server for asr engine
+    websocket_srv.initAsr(model_path, s_model_thread_num);  // init asr model
 
     LOG(INFO) << "decoder-thread-num: " << s_decoder_thread_num;
     LOG(INFO) << "io-thread-num: " << s_io_thread_num;
