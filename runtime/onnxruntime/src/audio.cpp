@@ -254,9 +254,9 @@ float Audio::GetTimeLen()
 void Audio::WavResample(int32_t sampling_rate, const float *waveform,
                           int32_t n)
 {
-    LOG(INFO) << "Creating a resampler:\n"
-              << "   in_sample_rate: "<< sampling_rate << "\n"
-              << "   output_sample_rate: " << static_cast<int32_t>(dest_sample_rate);
+    LOG(INFO) << "Creating a resampler: "
+              << " in_sample_rate: "<< sampling_rate
+              << " output_sample_rate: " << static_cast<int32_t>(dest_sample_rate);
     float min_freq =
         std::min<int32_t>(sampling_rate, dest_sample_rate);
     float lowpass_cutoff = 0.99 * 0.5 * min_freq;
@@ -462,6 +462,10 @@ bool Audio::FfmpegLoad(const char* buf, int n_file_len){
         nullptr, // write callback (not used here)
         nullptr // seek callback (not used here)
     );
+    if (!avio_ctx) {
+        av_free(buf_copy);
+        return false;
+    }
     AVFormatContext* formatContext = avformat_alloc_context();
     formatContext->pb = avio_ctx;
     if (avformat_open_input(&formatContext, "", NULL, NULL) != 0) {
@@ -576,7 +580,9 @@ bool Audio::FfmpegLoad(const char* buf, int n_file_len){
         av_packet_unref(packet);
     }
 
-    avio_context_free(&avio_ctx);
+    //avio_context_free(&avio_ctx);
+    av_freep(&avio_ctx ->buffer);
+    av_freep(&avio_ctx);
     avformat_close_input(&formatContext);
     avformat_free_context(formatContext);
     avcodec_free_context(&codecContext);
