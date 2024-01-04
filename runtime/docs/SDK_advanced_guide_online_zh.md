@@ -12,6 +12,7 @@ FunASR实时语音听写软件包，集成了实时版本的语音端点检测�
 
 | 时间         | 详情                                | 镜像版本                                 | 镜像ID         |
 |:-----------|:----------------------------------|--------------------------------------|--------------|
+| 2024.01.03 | 2pass-offline模式支持Ngram语言模型解码、wfst热词，同时修复已知的crash问题及内存泄漏问题 | funasr-runtime-sdk-online-cpu-0.1.6  | 3db1978ebb36      |
 | 2023.11.09 | 修复无实时结果问题                         | funasr-runtime-sdk-online-cpu-0.1.5  | b16584b6d38b      |
 | 2023.11.08 | 支持服务端加载热词(更新热词通信协议)、runtime结构变化适配 | funasr-runtime-sdk-online-cpu-0.1.4  | 691974017c38 |
 | 2023.09.19 | 2pass模式支持热词、时间戳、ITN模型             | funasr-runtime-sdk-online-cpu-0.1.2  | 7222c5319bcf |
@@ -35,11 +36,11 @@ docker安装失败请参考 [Docker Installation](https://alibaba-damo-academy.g
 
 ```shell
 sudo docker pull \
-  registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-online-cpu-0.1.5
+  registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-online-cpu-0.1.6
 mkdir -p ./funasr-runtime-resources/models
 sudo docker run -p 10096:10095 -it --privileged=true \
   -v $PWD/funasr-runtime-resources/models:/workspace/models \
-  registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-online-cpu-0.1.5
+  registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-online-cpu-0.1.6
 ```
 
 ### 服务端启动
@@ -53,6 +54,7 @@ nohup bash run_server_2pass.sh \
   --model-dir damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-onnx  \
   --online-model-dir damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online-onnx  \
   --punc-dir damo/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727-onnx \
+  --lm-dir damo/speech_ngram_lm_zh-cn-ai-wesp-fst \
   --itn-dir thuduj12/fst_itn_zh \
   --hotword /workspace/models/hotwords.txt > log.out 2>&1 &
 
@@ -100,6 +102,7 @@ nohup bash run_server_2pass.sh \
   --online-model-dir damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online-onnx \
   --vad-dir damo/speech_fsmn_vad_zh-cn-16k-common-onnx \
   --punc-dir damo/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727-onnx \
+  --lm-dir damo/speech_ngram_lm_zh-cn-ai-wesp-fst \
   --itn-dir thuduj12/fst_itn_zh \
   --certfile  ../../../ssl_key/server.crt \
   --keyfile ../../../ssl_key/server.key \
@@ -110,11 +113,9 @@ nohup bash run_server_2pass.sh \
 --download-model-dir 模型下载地址，通过设置model ID从Modelscope下载模型
 --model-dir  modelscope model ID 或者 本地模型路径
 --online-model-dir  modelscope model ID 或者 本地模型路径
---quantize  True为量化ASR模型，False为非量化ASR模型，默认是True
 --vad-dir  modelscope model ID 或者 本地模型路径
---vad-quant   True为量化VAD模型，False为非量化VAD模型，默认是True
 --punc-dir  modelscope model ID 或者 本地模型路径
---punc-quant   True为量化PUNC模型，False为非量化PUNC模型，默认是True
+--lm-dir modelscope model ID 或者 本地模型路径
 --itn-dir modelscope model ID 或者 本地模型路径
 --port  服务端监听的端口号，默认为 10095
 --decoder-thread-num  服务端线程池个数(支持的最大并发路数)，
