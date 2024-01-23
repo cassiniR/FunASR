@@ -83,8 +83,15 @@ nlohmann::json handle_result(FUNASR_RESULT result) {
 
   std::string tmp_stamp_sents = FunASRGetStampSents(result);
   if (tmp_stamp_sents != "") {
-    LOG(INFO) << "offline stamp_sents : " << tmp_stamp_sents;
-    jsonresult["stamp_sents"] = tmp_stamp_sents;
+    try{
+      nlohmann::json json_stamp = nlohmann::json::parse(tmp_stamp_sents);
+      LOG(INFO) << "offline stamp_sents : " << json_stamp;
+      jsonresult["stamp_sents"] = json_stamp;
+    }catch (std::exception const &e)
+    {
+      LOG(ERROR)<< tmp_stamp_sents << e.what();
+      jsonresult["stamp_sents"] = "";
+    }
   }
 
   return jsonresult;
@@ -402,7 +409,7 @@ void WebSocketServer::on_message(websocketpp::connection_hdl hdl,
       }
 
       // hotwords: fst/nn
-      if(msg_data->hotwords_embedding == NULL){
+      if(msg_data->hotwords_embedding == nullptr){
         std::unordered_map<std::string, int> merged_hws_map;
         std::string nn_hotwords = "";
 
@@ -451,7 +458,7 @@ void WebSocketServer::on_message(websocketpp::connection_hdl hdl,
         msg_data->msg["audio_fs"] = jsonresult["audio_fs"];
       }
       if (jsonresult.contains("chunk_size")) {
-        if (msg_data->tpass_online_handle == NULL) {
+        if (msg_data->tpass_online_handle == nullptr) {
           std::vector<int> chunk_size_vec =
               jsonresult["chunk_size"].get<std::vector<int>>();
           // check chunk_size_vec
@@ -473,7 +480,7 @@ void WebSocketServer::on_message(websocketpp::connection_hdl hdl,
       if ((jsonresult["is_speaking"] == false ||
           jsonresult["is_finished"] == true) && 
           msg_data->msg["is_eof"] != true &&
-          msg_data->hotwords_embedding != NULL) {
+          msg_data->hotwords_embedding != nullptr) {
         LOG(INFO) << "client done";
 
         // if it is in final message, post the sample_data to decode
@@ -525,7 +532,7 @@ void WebSocketServer::on_message(websocketpp::connection_hdl hdl,
 
           try{
             // post to decode
-            if (msg_data->msg["is_eof"] != true && msg_data->hotwords_embedding != NULL) {
+            if (msg_data->msg["is_eof"] != true && msg_data->hotwords_embedding != nullptr) {
               std::vector<std::vector<float>> hotwords_embedding_(*(msg_data->hotwords_embedding));
               msg_data->strand_->post(
                         std::bind(&WebSocketServer::do_decoder, this,
