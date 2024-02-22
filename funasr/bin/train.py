@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- encoding: utf-8 -*-
+
 import os
 import sys
 import torch
@@ -41,14 +44,16 @@ def main_hydra(kwargs: DictConfig):
 
 def main(**kwargs):
     print(kwargs)
+    
     # set random seed
-    tables.print()
     set_all_random_seed(kwargs.get("seed", 0))
     torch.backends.cudnn.enabled = kwargs.get("cudnn_enabled", torch.backends.cudnn.enabled)
     torch.backends.cudnn.benchmark = kwargs.get("cudnn_benchmark", torch.backends.cudnn.benchmark)
     torch.backends.cudnn.deterministic = kwargs.get("cudnn_deterministic", True)
     
     local_rank = int(os.environ.get('LOCAL_RANK', 0))
+    if local_rank == 0:
+        tables.print()
     # Check if we are using DDP or FSDP
     use_ddp = 'WORLD_SIZE' in os.environ and int(os.environ["WORLD_SIZE"]) > 1
     use_fsdp = kwargs.get("use_fsdp", None)
@@ -76,9 +81,8 @@ def main(**kwargs):
         frontend = frontend_class(**kwargs["frontend_conf"])
         kwargs["frontend"] = frontend
         kwargs["input_size"] = frontend.output_size()
-    
-    # import pdb;
-    # pdb.set_trace()
+
+
     # build model
     model_class = tables.model_classes.get(kwargs["model"])
     model = model_class(**kwargs, **kwargs["model_conf"], vocab_size=len(tokenizer.token_list))
@@ -144,9 +148,8 @@ def main(**kwargs):
 
     # dataset
     dataset_class = tables.dataset_classes.get(kwargs.get("dataset", "AudioDataset"))
-    dataset_tr = dataset_class(kwargs.get("train_data_set_list"), frontend=frontend, tokenizer=tokenizer, **kwargs.get("dataset_conf"))
-    dataset_val = dataset_class(kwargs.get("valid_data_set_list"), frontend=frontend, tokenizer=tokenizer,
-                               **kwargs.get("dataset_conf"))
+    dataset_tr = dataset_class(kwargs.get("train_data_set_list"), frontend=frontend, tokenizer=tokenizer, is_training=True, **kwargs.get("dataset_conf"))
+    dataset_val = dataset_class(kwargs.get("valid_data_set_list"), frontend=frontend, tokenizer=tokenizer, is_training=False, **kwargs.get("dataset_conf"))
 
     # dataloader
     batch_sampler = kwargs["dataset_conf"].get("batch_sampler", "DynamicBatchLocalShuffleSampler")
@@ -154,7 +157,7 @@ def main(**kwargs):
     if batch_sampler is not None:
         batch_sampler_class = tables.batch_sampler_classes.get(batch_sampler)
         batch_sampler = batch_sampler_class(dataset_tr, **kwargs.get("dataset_conf"))
-        batch_sampler_val = batch_sampler_class(dataset_tr, is_training=False, **kwargs.get("dataset_conf"))
+        batch_sampler_val = batch_sampler_class(dataset_val, is_training=False, **kwargs.get("dataset_conf"))
     dataloader_tr = torch.utils.data.DataLoader(dataset_tr,
                                                 collate_fn=dataset_tr.collator,
                                                 batch_sampler=batch_sampler,

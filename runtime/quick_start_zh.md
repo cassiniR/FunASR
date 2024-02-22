@@ -66,7 +66,7 @@ nohup bash run_server_2pass.sh \
   --online-model-dir damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online-onnx  \
   --punc-dir damo/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727-onnx \
   --itn-dir thuduj12/fst_itn_zh \
-  --hotword /workspace/models/hotwords.txt > log.out 2>&1 &
+  --hotword /workspace/models/hotwords.txt > log.txt 2>&1 &
 
 # 如果您想关闭ssl，增加参数：--certfile 0
 # 如果您想使用时间戳或者nn热词模型进行部署，请设置--model-dir为对应模型：
@@ -111,7 +111,7 @@ nohup bash run_server.sh \
   --punc-dir damo/punc_ct-transformer_cn-en-common-vocab471067-large-onnx \
   --lm-dir damo/speech_ngram_lm_zh-cn-ai-wesp-fst \
   --itn-dir thuduj12/fst_itn_zh \
-  --hotword /workspace/models/hotwords.txt > log.out 2>&1 &
+  --hotword /workspace/models/hotwords.txt > log.txt 2>&1 &
 
 # 如果您想关闭ssl，增加参数：--certfile 0
 # 如果您想使用时间戳或者nn热词模型进行部署，请设置--model-dir为对应模型：
@@ -130,35 +130,3 @@ python3 funasr_wss_client.py --host "127.0.0.1" --port 10095 --mode offline --au
 
 
 
-### 工业模型egs
-
-如果您希望使用ModelScope中预训练好的工业模型，进行推理或者微调训练，您可以参考下面指令：
-
-
-```python
-from modelscope.pipelines import pipeline
-from modelscope.utils.constant import Tasks
-
-inference_pipeline = pipeline(
-    task=Tasks.auto_speech_recognition,
-    model='damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch',
-)
-
-rec_result = inference_pipeline(audio_in='https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/test_audio/asr_example_zh.wav')
-print(rec_result)
-# {'text': '欢迎大家来体验达摩院推出的语音识别模型'}
-```
-
-更多例子可以参考（[点击此处](https://alibaba-damo-academy.github.io/FunASR/en/modelscope_pipeline/quick_start.html)）
-
-
-### 学术模型egs
-
-如果您希望从头开始训练，通常为学术模型，您可以通过下面的指令启动训练与推理：
-
-```shell
-cd egs/aishell/paraformer
-. ./run.sh --CUDA_VISIBLE_DEVICES="0,1" --gpu_num=2
-```
-
-更多例子可以参考（[点击此处](https://alibaba-damo-academy.github.io/FunASR/en/academic_recipe/asr_recipe.html)）

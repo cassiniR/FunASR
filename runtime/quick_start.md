@@ -67,7 +67,7 @@ nohup bash run_server_2pass.sh \
   --online-model-dir damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online-onnx  \
   --punc-dir damo/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727-onnx \
   --itn-dir thuduj12/fst_itn_zh \
-  --hotword /workspace/models/hotwords.txt > log.out 2>&1 &
+  --hotword /workspace/models/hotwords.txt > log.txt 2>&1 &
 
 # If you want to disable SSL, add the parameter: --certfile 0
 # If you want to deploy with a timestamp or nn hotword model, please set --model-dir to the corresponding model:
@@ -113,7 +113,7 @@ nohup bash run_server.sh \
   --punc-dir damo/punc_ct-transformer_cn-en-common-vocab471067-large-onnx \
   --lm-dir damo/speech_ngram_lm_zh-cn-ai-wesp-fst \
   --itn-dir thuduj12/fst_itn_zh \
-  --hotword /workspace/models/hotwords.txt > log.out 2>&1 &
+  --hotword /workspace/models/hotwords.txt > log.txt 2>&1 &
 
 # If you want to disable SSL, add the parameter: --certfile 0
 # If you want to use timestamp or nn hotword models for deployment, please set --model-dir to the corresponding model:
@@ -132,33 +132,3 @@ python3 funasr_wss_client.py --host "127.0.0.1" --port 10095 --mode offline --au
 
 For more examples, please refer to [docs](https://github.com/alibaba-damo-academy/FunASR/blob/main/runtime/docs/SDK_advanced_guide_offline.md)
 
-
-## Industrial Model Egs
-
-If you want to use the pre-trained industrial models in ModelScope for inference or fine-tuning training, you can refer to the following command:
-
-```python
-from modelscope.pipelines import pipeline
-from modelscope.utils.constant import Tasks
-
-inference_pipeline = pipeline(
-    task=Tasks.auto_speech_recognition,
-    model='damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch',
-)
-
-rec_result = inference_pipeline(audio_in='https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/test_audio/asr_example_zh.wav')
-print(rec_result)
-# {'text': '欢迎大家来体验达摩院推出的语音识别模型'}
-```
-
-More examples could be found in [docs](https://alibaba-damo-academy.github.io/FunASR/en/modelscope_pipeline/quick_start.html)
-
-## Academic model egs
-
-If you want to train from scratch, usually for academic models, you can start training and inference with the following command:
-
-```shell
-cd egs/aishell/paraformer
-. ./run.sh --CUDA_VISIBLE_DEVICES="0,1" --gpu_num=2
-```
-More examples could be found in [docs](https://alibaba-damo-academy.github.io/FunASR/en/modelscope_pipeline/quick_start.html)

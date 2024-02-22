@@ -3,6 +3,7 @@ import time
 import torch
 import logging
 from tqdm import tqdm
+from datetime import datetime
 import torch.distributed as dist
 from contextlib import nullcontext
 # from torch.utils.tensorboard import SummaryWriter
@@ -69,6 +70,8 @@ class Trainer:
         self.device = next(model.parameters()).device
         self.avg_nbest_model = kwargs.get("avg_nbest_model", 5)
         self.kwargs = kwargs
+        self.log_interval = kwargs.get("log_interval", 50)
+        self.batch_total = 0
         
     
         try:
@@ -105,14 +108,10 @@ class Trainer:
         filename = os.path.join(self.output_dir, f'model.pt.ep{epoch}')
         torch.save(state, filename)
         
-        print(f'Checkpoint saved to {filename}')
+        print(f'\nCheckpoint saved to {filename}\n')
         latest = Path(os.path.join(self.output_dir, f'model.pt'))
-        try:
-            latest.unlink()
-        except:
-            pass
+        torch.save(state, latest)
 
-        latest.symlink_to(filename)
     
     def _resume_checkpoint(self, resume_path):
         """
@@ -126,7 +125,20 @@ class Trainer:
         if os.path.isfile(ckpt):
             checkpoint = torch.load(ckpt)
             self.start_epoch = checkpoint['epoch'] + 1
-            self.model.load_state_dict(checkpoint['state_dict'])
+            # self.model.load_state_dict(checkpoint['state_dict'])
+            src_state = checkpoint['state_dict']
+            dst_state = self.model.state_dict()
+            for k in dst_state.keys():
+                if not k.startswith("module.") and "module."+k in src_state.keys():
+                    k_ddp = "module."+k
+                else:
+                    k_ddp = k
+                if k_ddp in src_state.keys():
+                    dst_state[k] = src_state[k_ddp]
+                else:
+                    print(f"Miss key in ckpt: model: {k}, ckpt: {k_ddp}")
+
+            self.model.load_state_dict(dst_state)
             self.optim.load_state_dict(checkpoint['optimizer'])
             self.scheduler.load_state_dict(checkpoint['scheduler'])
             print(f"Checkpoint loaded successfully from '{ckpt}'")
@@ -145,7 +157,7 @@ class Trainer:
             self._resume_checkpoint(self.output_dir)
         
         for epoch in range(self.start_epoch, self.max_epoch + 1):
-            
+            time1 = time.perf_counter()
             self._train_epoch(epoch)
 
 
@@ -167,6 +179,9 @@ class Trainer:
             
             self.scheduler.step()
 
+            time2 = time.perf_counter()
+            time_escaped = (time2 - time1)/3600.0
+            print(f"\nrank: {self.local_rank}, time_escaped_epoch: {time_escaped:.3f} hours, estimated to finish {self.max_epoch} epoch: {(self.max_epoch-epoch)*time_escaped:.3f}\n")
 
         if self.rank == 0:
             average_checkpoints(self.output_dir, self.avg_nbest_model)
@@ -186,7 +201,7 @@ class Trainer:
             epoch (int): The current epoch number.
         """
         self.model.train()
-        pbar = tqdm(colour="blue", desc=f"Training Epoch: {epoch + 1}", total=len(self.dataloader_train),
+        pbar = tqdm(colour="blue", desc=f"rank: {self.local_rank}, Training Epoch: {epoch + 1}", total=len(self.dataloader_train),
                     dynamic_ncols=True)
         
         # Set the number of steps for gradient accumulation
@@ -195,7 +210,9 @@ class Trainer:
         self.optim.zero_grad()
         speed_stats = {}
         time5 = time.perf_counter()
+        
         for batch_idx, batch in enumerate(self.dataloader_train):
+            self.batch_total += 1
             time1 = time.perf_counter()
             speed_stats["data_load"] = f"{time1-time5:0.3f}"
 
@@ -204,7 +221,10 @@ class Trainer:
             my_context = self.model.no_sync if batch_idx % accum_grad != 0 else nullcontext
             with my_context():
                 time2 = time.perf_counter()
+
                 retval = self.model(**batch)
+                torch.cuda.empty_cache()
+
                 time3 = time.perf_counter()
                 speed_stats["forward_time"] = f"{time3 - time2:0.3f}"
                 loss, stats, weight = retval
@@ -255,28 +275,41 @@ class Trainer:
                 speed_stats["total_time"] = total_time
 
 
-            pbar.update(1)
-            if self.local_rank == 0:
+            
+            if (batch_idx+1) % self.log_interval == 0 or (batch_idx+1) == len(self.dataloader_train):
+                pbar.update(self.log_interval)
+                gpu_info = "GPU, memory: {:.3f} GB, " \
+                           "{:.3f} GB, "\
+                           "{:.3f} GB, "\
+                           "{:.3f} GB".format(torch.cuda.memory_allocated()/1024/1024/1024,
+                                             torch.cuda.max_memory_allocated()/1024/1024/1024,
+                                             torch.cuda.memory_reserved()/1024/1024/1024,
+                                             torch.cuda.max_memory_reserved()/1024/1024/1024,
+                                             )
+                lr = self.scheduler.get_last_lr()[0]
+                time_now = datetime.now()
+                time_now = time_now.strftime("%Y-%m-%d %H:%M:%S")
                 description = (
-                    f"Train epoch: {epoch}/{self.max_epoch}, "
-                    f"step {batch_idx}/{len(self.dataloader_train)}, "
-                    f"{speed_stats}, "
+                    f"{time_now}, "
+                    f"rank: {self.local_rank}, "
+                    f"epoch: {epoch}/{self.max_epoch}, "
+                    f"step: {batch_idx+1}/{len(self.dataloader_train)}, total: {self.batch_total}, "
                     f"(loss: {loss.detach().cpu().item():.3f}), "
-                    f"{[(k, round(v.cpu().item(), 3)) for k, v in stats.items()]}"
+                    f"(lr: {lr:.3e}), "
+                    f"{[(k, round(v.cpu().item(), 3)) for k, v in stats.items()]}, "
+                    f"{speed_stats}, "
+                    f"{gpu_info}"
                 )
                 pbar.set_description(description)
                 if self.writer:
-                    self.writer.add_scalar('Loss/train', loss.item(),
-                                           epoch*len(self.dataloader_train) + batch_idx)
+                    self.writer.add_scalar(f'rank{self.local_rank}_Loss/train', loss.item(), self.batch_total)
+                    self.writer.add_scalar(f'rank{self.local_rank}_lr/train', lr, self.batch_total)
                     for key, var in stats.items():
-                        self.writer.add_scalar(f'{key}/train', var.item(),
-                                               epoch * len(self.dataloader_train) + batch_idx)
+                        self.writer.add_scalar(f'rank{self.local_rank}_{key}/train', var.item(), self.batch_total)
                     for key, var in speed_stats.items():
-                        self.writer.add_scalar(f'{key}/train', eval(var),
-                                               epoch * len(self.dataloader_train) + batch_idx)
-                    
-            # if batch_idx == 2:
-            #     break
+                        self.writer.add_scalar(f'rank{self.local_rank}_{key}/train', eval(var), self.batch_total)
+
+
         pbar.close()
 
     def _validate_epoch(self, epoch):
@@ -289,7 +322,7 @@ class Trainer:
         """
         self.model.eval()
         with torch.no_grad():
-            pbar = tqdm(colour="red", desc=f"Training Epoch: {epoch + 1}", total=len(self.dataloader_val),
+            pbar = tqdm(colour="red", desc=f"rank: {self.local_rank}, Validation Epoch: {epoch + 1}", total=len(self.dataloader_val),
                         dynamic_ncols=True)
             speed_stats = {}
             time5 = time.perf_counter()
@@ -317,22 +350,27 @@ class Trainer:
                 loss = loss
                 time4 = time.perf_counter()
 
-                pbar.update(1)
-                if self.local_rank == 0:
+                
+                if (batch_idx+1) % self.log_interval == 0 or (batch_idx+1) == len(self.dataloader_val):
+                    pbar.update(self.log_interval)
+                    time_now = datetime.now()
+                    time_now = time_now.strftime("%Y-%m-%d %H:%M:%S")
                     description = (
+                        f"{time_now}, "
+                        f"rank: {self.local_rank}, "
                         f"validation epoch: {epoch}/{self.max_epoch}, "
-                        f"step {batch_idx}/{len(self.dataloader_train)}, "
-                        f"{speed_stats}, "
+                        f"step: {batch_idx+1}/{len(self.dataloader_val)}, "
                         f"(loss: {loss.detach().cpu().item():.3f}), "
-                        f"{[(k, round(v.cpu().item(), 3)) for k, v in stats.items()]}"
+                        f"{[(k, round(v.cpu().item(), 3)) for k, v in stats.items()]}, "
+                        f"{speed_stats}, "
                     )
                     pbar.set_description(description)
                     if self.writer:
-                        self.writer.add_scalar('Loss/val', loss.item(),
-                                               epoch*len(self.dataloader_train) + batch_idx)
+                        self.writer.add_scalar(f"rank{self.local_rank}_Loss/val", loss.item(),
+                                               epoch*len(self.dataloader_val) + batch_idx)
                         for key, var in stats.items():
-                            self.writer.add_scalar(f'{key}/val', var.item(),
-                                                   epoch * len(self.dataloader_train) + batch_idx)
+                            self.writer.add_scalar(f'rank{self.local_rank}_{key}/val', var.item(),
+                                                   epoch * len(self.dataloader_val) + batch_idx)
                         for key, var in speed_stats.items():
-                            self.writer.add_scalar(f'{key}/val', eval(var),
-                                                   epoch * len(self.dataloader_train) + batch_idx)
+                            self.writer.add_scalar(f'rank{self.local_rank}_{key}/val', eval(var),
+                                                   epoch * len(self.dataloader_val) + batch_idx)

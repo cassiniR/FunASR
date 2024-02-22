@@ -3,11 +3,10 @@
 ([简体中文](./README_zh.md)|English)
 
 # FunASR: A Fundamental End-to-End Speech Recognition Toolkit
-<p align="left">
-    <a href=""><img src="https://img.shields.io/badge/OS-Linux%2C%20Win%2C%20Mac-brightgreen.svg"></a>
-    <a href=""><img src="https://img.shields.io/badge/Python->=3.7,<=3.10-aff.svg"></a>
-    <a href=""><img src="https://img.shields.io/badge/Pytorch-%3E%3D1.11-blue"></a>
-</p>
+
+
+[![PyPI](https://img.shields.io/pypi/v/funasr)](https://pypi.org/project/funasr/)
+
 
 <strong>FunASR</strong> hopes to build a bridge between academic research and industrial applications on speech recognition. By supporting the training & finetuning of the industrial-grade speech recognition model, researchers and developers can conduct research and production of speech recognition models more conveniently, and promote the development of speech recognition ecology. ASR for Fun！
 
@@ -28,6 +27,8 @@
 
 <a name="whats-new"></a>
 ## What's new:
+- 2024/01/30：funasr-1.0 has been released ([docs](https://github.com/alibaba-damo-academy/FunASR/discussions/1319))
+- 2024/01/30：emotion recognition models are new supported. [model link](https://www.modelscope.cn/models/iic/emotion2vec_base_finetuned/summary), modified from [repo](https://github.com/ddlBoJack/emotion2vec).
 - 2024/01/25: Offline File Transcription Service 4.2, Offline File Transcription Service of English 1.3 released，optimized the VAD (Voice Activity Detection) data processing method, significantly reducing peak memory usage, memory leak optimization; Real-time Transcription Service 1.7 released，optimizatized the client-side；([docs](runtime/readme.md))
 - 2024/01/09: The Funasr SDK for Windows version 2.0 has been released, featuring support for The offline file transcription service (CPU) of Mandarin 4.1, The offline file transcription service (CPU) of English 1.2, The real-time transcription service (CPU) of Mandarin 1.6. For more details, please refer to the official documentation or release notes([FunASR-Runtime-Windows](https://www.modelscope.cn/models/damo/funasr-runtime-win-cpu-x64/summary))
 - 2024/01/03: File Transcription Service 4.0 released, Added support for 8k models, optimized timestamp mismatch issues and added sentence-level timestamps, improved the effectiveness of English word FST hotwords, supported automated configuration of thread parameters, and fixed known crash issues as well as memory leak problems, refer to ([docs](runtime/readme.md#file-transcription-service-mandarin-cpu)).
@@ -48,7 +49,19 @@
 <a name="Installation"></a>
 ## Installation
 
-Please ref to [installation docs](https://alibaba-damo-academy.github.io/FunASR/en/installation/installation.html)
+```shell
+pip3 install -U funasr
+```
+Or install from source code
+``` sh
+git clone https://github.com/alibaba/FunASR.git && cd FunASR
+pip3 install -e ./
+```
+Install modelscope for the pretrained models (Optional)
+
+```shell
+pip3 install -U modelscope
+```
 
 ## Model Zoo
 FunASR has open-sourced a large number of pre-trained models on industrial data. You are free to use, copy, modify, and share FunASR models under the [Model License Agreement](./MODEL_LICENSE). Below are some representative models, for more models please refer to the [Model Zoo]().
@@ -56,16 +69,16 @@ FunASR has open-sourced a large number of pre-trained models on industrial data.
 (Note: 🤗 represents the Huggingface model zoo link, ⭐ represents the ModelScope model zoo link)
 
 
-|                                                                             Model Name                                                                             |                    Task Details                    |          Training Data           | Parameters |
-|:------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------:|:--------------------------------:|:----------:|
-|    paraformer-zh <br> ([⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch/summary)  [🤗]() )    | speech recognition, with timestamps, non-streaming |      60000 hours, Mandarin       |    220M    |
-| <nobr>paraformer-zh-online <br> ( [⭐](https://modelscope.cn/models/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online/summary) [🤗]() )</nobr> |           speech recognition, streaming            |      60000 hours, Mandarin       |    220M    |
-|         paraformer-en <br> ( [⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-en-16k-common-vocab10020/summary) [🤗]() )         | speech recognition, with timestamps, non-streaming |       50000 hours, English       |    220M    |
-|                     conformer-en <br> ( [⭐](https://modelscope.cn/models/damo/speech_conformer_asr-en-16k-vocab4199-pytorch/summary) [🤗]() )                      |         speech recognition, non-streaming          |       50000 hours, English       |    220M    |
-|                     ct-punc <br> ( [⭐](https://modelscope.cn/models/damo/punc_ct-transformer_cn-en-common-vocab471067-large/summary) [🤗]() )                      |              punctuation restoration               |    100M, Mandarin and English    |    1.1G    | 
-|                          fsmn-vad <br> ( [⭐](https://modelscope.cn/models/damo/speech_fsmn_vad_zh-cn-16k-common-pytorch/summary) [🤗]() )                          |              voice activity detection              | 5000 hours, Mandarin and English |    0.4M    | 
-|                          fa-zh <br> ( [⭐](https://modelscope.cn/models/damo/speech_timestamp_prediction-v1-16k-offline/summary) [🤗]() )                           |                timestamp prediction                |       5000 hours, Mandarin       |    38M     | 
-|                cam++ <br> ( [⭐](https://modelscope.cn/models/iic/speech_campplus_sv_zh-cn_16k-common/summary) [🤗]() )                                             |        speaker verification/diarization            |            5000 hours            |    7.2M    | 
+|                                                                                                         Model Name                                                                                                         |                    Task Details                    |          Training Data           | Parameters |
+|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------:|:--------------------------------:|:----------:|
+|          paraformer-zh <br> ([⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch/summary)  [🤗](https://huggingface.co/funasr/paraformer-tp) )           | speech recognition, with timestamps, non-streaming |      60000 hours, Mandarin       |    220M    |
+| <nobr>paraformer-zh-streaming <br> ( [⭐](https://modelscope.cn/models/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online/summary) [🤗](https://huggingface.co/funasr/paraformer-zh-streaming) )</nobr> |           speech recognition, streaming            |      60000 hours, Mandarin       |    220M    |
+|               paraformer-en <br> ( [⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-en-16k-common-vocab10020/summary) [🤗](https://huggingface.co/funasr/paraformer-en) )                | speech recognition, with timestamps, non-streaming |       50000 hours, English       |    220M    |
+|                            conformer-en <br> ( [⭐](https://modelscope.cn/models/damo/speech_conformer_asr-en-16k-vocab4199-pytorch/summary) [🤗](https://huggingface.co/funasr/conformer-en) )                             |         speech recognition, non-streaming          |       50000 hours, English       |    220M    |
+|                               ct-punc <br> ( [⭐](https://modelscope.cn/models/damo/punc_ct-transformer_cn-en-common-vocab471067-large/summary) [🤗](https://huggingface.co/funasr/ct-punc) )                               |              punctuation restoration               |    100M, Mandarin and English    |    1.1G    | 
+|                                   fsmn-vad <br> ( [⭐](https://modelscope.cn/models/damo/speech_fsmn_vad_zh-cn-16k-common-pytorch/summary) [🤗](https://huggingface.co/funasr/fsmn-vad) )                                   |              voice activity detection              | 5000 hours, Mandarin and English |    0.4M    | 
+|                                     fa-zh <br> ( [⭐](https://modelscope.cn/models/damo/speech_timestamp_prediction-v1-16k-offline/summary) [🤗](https://huggingface.co/funasr/fa-zh) )                                     |                timestamp prediction                |       5000 hours, Mandarin       |    38M     | 
+|                                       cam++ <br> ( [⭐](https://modelscope.cn/models/iic/speech_campplus_sv_zh-cn_16k-common/summary) [🤗](https://huggingface.co/funasr/campplus) )                                        |        speaker verification/diarization            |            5000 hours            |    7.2M    | 
 
 
 
@@ -131,7 +144,7 @@ for i in range(total_chunk_num):
 ```
 Note: `chunk_size` is the configuration for streaming latency.` [0,10,5]` indicates that the real-time display granularity is `10*60=600ms`, and the lookahead information is `5*60=300ms`. Each inference input is `600ms` (sample points are `16000*0.6=960`), and the output is the corresponding text. For the last speech segment input, `is_final=True` needs to be set to force the output of the last word.
 
-### Voice Activity Detection (streaming)
+### Voice Activity Detection (Non-Streaming)
 ```python
 from funasr import AutoModel
 
@@ -140,7 +153,7 @@ wav_file = f"{model.model_path}/example/asr_example.wav"
 res = model.generate(input=wav_file)
 print(res)
 ```
-### Voice Activity Detection (Non-streaming)
+### Voice Activity Detection (Streaming)
 ```python
 from funasr import AutoModel
 

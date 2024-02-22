@@ -1,14 +1,13 @@
 import json
 import time
+import copy
 import torch
-import hydra
 import random
 import string
 import logging
 import os.path
 import numpy as np
 from tqdm import tqdm
-from omegaconf import DictConfig, OmegaConf, ListConfig
 
 from funasr.register import tables
 from funasr.utils.load_utils import load_bytes
@@ -17,10 +16,13 @@ from funasr.download.download_from_hub import download_model
 from funasr.utils.vad_utils import slice_padding_audio_samples
 from funasr.train_utils.set_all_random_seed import set_all_random_seed
 from funasr.train_utils.load_pretrained_model import load_pretrained_model
-from funasr.utils.load_utils import load_audio_text_image_video, extract_fbank
+from funasr.utils.load_utils import load_audio_text_image_video
 from funasr.utils.timestamp_tools import timestamp_sentence
 from funasr.models.campplus.utils import sv_chunk, postprocess, distribute_spk
-from funasr.models.campplus.cluster_backend import ClusterBackend
+try:
+    from funasr.models.campplus.cluster_backend import ClusterBackend
+except:
+    print("If you want to use the speaker diarization, please `pip install hdbscan`")
 
 
 def prepare_data_iterator(data_in, input_len=None, data_type=None, key=None):
@@ -88,7 +90,7 @@ def prepare_data_iterator(data_in, input_len=None, data_type=None, key=None):
 class AutoModel:
     
     def __init__(self, **kwargs):
-        if kwargs.get("disable_log", False):
+        if not kwargs.get("disable_log", False):
             tables.print()
         
         model, kwargs = self.build_model(**kwargs)
@@ -121,9 +123,6 @@ class AutoModel:
             if spk_mode not in ["default", "vad_segment", "punc_segment"]:
                 logging.error("spk_mode should be one of default, vad_segment and punc_segment.")
             self.spk_mode = spk_mode
-            self.preset_spk_num = kwargs.get("preset_spk_num", None)
-            if self.preset_spk_num:
-                logging.warning("Using preset speaker number: {}".format(self.preset_spk_num))
             
         self.kwargs = kwargs
         self.model = model
@@ -134,8 +133,6 @@ class AutoModel:
         self.spk_model = spk_model
         self.spk_kwargs = spk_kwargs
         self.model_path = kwargs.get("model_path")
-
-  
         
     def build_model(self, **kwargs):
         assert "model" in kwargs
@@ -146,7 +143,7 @@ class AutoModel:
         set_all_random_seed(kwargs.get("seed", 0))
         
         device = kwargs.get("device", "cuda")
-        if not torch.cuda.is_available() or kwargs.get("ngpu", 0) == 0:
+        if not torch.cuda.is_available() or kwargs.get("ngpu", 1) == 0:
             device = "cpu"
             kwargs["batch_size"] = 1
         kwargs["device"] = device
@@ -176,7 +173,7 @@ class AutoModel:
         # build model
         model_class = tables.model_classes.get(kwargs["model"])
         model = model_class(**kwargs, **kwargs["model_conf"], vocab_size=vocab_size)
-        model.eval()
+        
         model.to(device)
         
         # init_param
@@ -200,8 +197,6 @@ class AutoModel:
         res = self.model(*args, kwargs)
         return res
 
-        
-
     def generate(self, input, input_len=None, **cfg):
         if self.vad_model is None:
             return self.inference(input, input_len=input_len, **cfg)
@@ -213,6 +208,7 @@ class AutoModel:
         kwargs = self.kwargs if kwargs is None else kwargs
         kwargs.update(cfg)
         model = self.model if model is None else model
+        model.eval()
 
         batch_size = kwargs.get("batch_size", 1)
         # if kwargs.get("device", "cpu") == "cpu":
@@ -232,7 +228,7 @@ class AutoModel:
             data_batch = data_list[beg_idx:end_idx]
             key_batch = key_list[beg_idx:end_idx]
             batch = {"data_in": data_batch, "key": key_batch}
-            if (end_idx - beg_idx) == 1 and isinstance(data_batch[0], torch.Tensor): # fbank
+            if (end_idx - beg_idx) == 1 and kwargs.get("data_type", None) == "fbank": # fbank
                 batch["data_in"] = data_batch[0]
                 batch["data_lengths"] = input_len
         
@@ -383,39 +379,56 @@ class AutoModel:
                             result[k] = restored_data[j][k]
                         else:
                             result[k] += restored_data[j][k]
-                            
+            
+            return_raw_text = kwargs.get('return_raw_text', False)            
             # step.3 compute punc model
             if self.punc_model is not None:
                 self.punc_kwargs.update(cfg)
                 punc_res = self.inference(result["text"], model=self.punc_model, kwargs=self.punc_kwargs, disable_pbar=True, **cfg)
-                import copy; raw_text = copy.copy(result["text"])
+                raw_text = copy.copy(result["text"])
+                if return_raw_text: result['raw_text'] = raw_text
                 result["text"] = punc_res[0]["text"]
+            else:
+                raw_text = None
                 
             # speaker embedding cluster after resorted
-            if self.spk_model is not None:
+            if self.spk_model is not None and kwargs.get('return_spk_res', True):
+                if raw_text is None:
+                    logging.error("Missing punc_model, which is required by spk_model.")
                 all_segments = sorted(all_segments, key=lambda x: x[0])
                 spk_embedding = result['spk_embedding']
-                labels = self.cb_model(spk_embedding.cpu(), oracle_num=self.preset_spk_num)
-                del result['spk_embedding']
+                labels = self.cb_model(spk_embedding.cpu(), oracle_num=kwargs.get('preset_spk_num', None))
+                # del result['spk_embedding']
                 sv_output = postprocess(all_segments, None, labels, spk_embedding.cpu())
                 if self.spk_mode == 'vad_segment':  # recover sentence_list
                     sentence_list = []
                     for res, vadsegment in zip(restored_data, vadsegments):
-                        sentence_list.append({"start": vadsegment[0],\
-                                                "end": vadsegment[1],
-                                                "sentence": res['raw_text'],
-                                                "timestamp": res['timestamp']})
+                        if 'timestamp' not in res:
+                            logging.error("Only 'iic/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch' \
+                                           and 'iic/speech_seaco_paraformer_large_asr_nat-zh-cn-16k-common-vocab8404-pytorch'\
+                                           can predict timestamp, and speaker diarization relies on timestamps.")
+                        sentence_list.append({"start": vadsegment[0],
+                                              "end": vadsegment[1],
+                                              "sentence": res['text'],
+                                              "timestamp": res['timestamp']})
                 elif self.spk_mode == 'punc_segment':
-                    sentence_list = timestamp_sentence(punc_res[0]['punc_array'], \
-                                                        result['timestamp'], \
-                                                        result['raw_text'])
+                    if 'timestamp' not in result:
+                        logging.error("Only 'iic/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch' \
+                                       and 'iic/speech_seaco_paraformer_large_asr_nat-zh-cn-16k-common-vocab8404-pytorch'\
+                                       can predict timestamp, and speaker diarization relies on timestamps.")
+                    sentence_list = timestamp_sentence(punc_res[0]['punc_array'],
+                                                       result['timestamp'],
+                                                       raw_text,
+                                                       return_raw_text=return_raw_text)
                 distribute_spk(sentence_list, sv_output)
                 result['sentence_info'] = sentence_list
             elif kwargs.get("sentence_timestamp", False):
-                sentence_list = timestamp_sentence(punc_res[0]['punc_array'], \
-                                                        result['timestamp'], \
-                                                        result['raw_text'])
+                sentence_list = timestamp_sentence(punc_res[0]['punc_array'],
+                                                   result['timestamp'],
+                                                   raw_text,
+                                                   return_raw_text=return_raw_text)
                 result['sentence_info'] = sentence_list
+            if "spk_embedding" in result: del result['spk_embedding']
                     
             result["key"] = key
             results_ret_list.append(result)

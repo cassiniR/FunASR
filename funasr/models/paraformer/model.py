@@ -455,7 +455,9 @@ class Paraformer(torch.nn.Module):
             speech, speech_lengths = data_in, data_lengths
             if len(speech.shape) < 3:
                 speech = speech[None, :, :]
-            if speech_lengths is None:
+            if speech_lengths is not None:
+                speech_lengths = speech_lengths.squeeze(-1)
+            else:
                 speech_lengths = speech.shape[1]
         else:
             # extract fbank feats
@@ -491,6 +493,8 @@ class Paraformer(torch.nn.Module):
         b, n, d = decoder_out.size()
         if isinstance(key[0], (list, tuple)):
             key = key[0]
+        if len(key) < b:
+            key = key*b
         for i in range(b):
             x = encoder_out[i, :encoder_out_lens[i], :]
             am_scores = decoder_out[i, :pre_token_length[i], :]
@@ -512,9 +516,10 @@ class Paraformer(torch.nn.Module):
                 nbest_hyps = [Hypothesis(yseq=yseq, score=score)]
             for nbest_idx, hyp in enumerate(nbest_hyps):
                 ibest_writer = None
-                if ibest_writer is None and kwargs.get("output_dir") is not None:
-                    writer = DatadirWriter(kwargs.get("output_dir"))
-                    ibest_writer = writer[f"{nbest_idx+1}best_recog"]
+                if kwargs.get("output_dir") is not None:
+                    if not hasattr(self, "writer"):
+                        self.writer = DatadirWriter(kwargs.get("output_dir"))
+                    ibest_writer = self.writer[f"{nbest_idx+1}best_recog"]
                 # remove sos/eos and get results
                 last_pos = -1
                 if isinstance(hyp.yseq, list):
@@ -534,7 +539,6 @@ class Paraformer(torch.nn.Module):
                     
                     result_i = {"key": key[i], "text": text_postprocessed}
 
-                    
                     if ibest_writer is not None:
                         ibest_writer["token"][key[i]] = " ".join(token)
                         # ibest_writer["text"][key[i]] = text

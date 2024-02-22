@@ -152,7 +152,7 @@ async def ws_serve(websocket, path):
 	frames_asr = []
 	frames_asr_online = []
 	global websocket_users
-	await clear_websocket()
+	# await clear_websocket()
 	websocket_users.add(websocket)
 	websocket.status_dict_asr = {}
 	websocket.status_dict_asr_online = {"cache": {}, "is_final": False}
@@ -179,7 +179,10 @@ async def ws_serve(websocket, path):
 				if "wav_name" in messagejson:
 					websocket.wav_name = messagejson.get("wav_name")
 				if "chunk_size" in messagejson:
-					websocket.status_dict_asr_online["chunk_size"] = messagejson["chunk_size"]
+					chunk_size = messagejson["chunk_size"]
+			                if isinstance(chunk_size, str):
+			                    chunk_size = chunk_size.split(',')
+					websocket.status_dict_asr_online["chunk_size"] = [int(x) for x in chunk_size]
 				if "encoder_chunk_look_back" in messagejson:
 					websocket.status_dict_asr_online["encoder_chunk_look_back"] = messagejson["encoder_chunk_look_back"]
 				if "decoder_chunk_look_back" in messagejson:

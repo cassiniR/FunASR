@@ -575,7 +575,8 @@ class FsmnVADStreaming(nn.Module):
 		
 		time1 = time.perf_counter()
 		is_streaming_input = kwargs.get("is_streaming_input", False) if chunk_size >= 15000 else kwargs.get("is_streaming_input", True)
-		cfg = {"is_final": kwargs.get("is_final", False), "is_streaming_input": is_streaming_input}
+		is_final = kwargs.get("is_final", False) if is_streaming_input else kwargs.get("is_final", True)
+		cfg = {"is_final": is_final, "is_streaming_input": is_streaming_input}
 		audio_sample_list = load_audio_text_image_video(data_in,
 		                                                fs=frontend.fs,
 		                                                audio_fs=kwargs.get("fs", 16000),
@@ -624,9 +625,10 @@ class FsmnVADStreaming(nn.Module):
 			self.init_cache(cache)
 		
 		ibest_writer = None
-		if ibest_writer is None and kwargs.get("output_dir") is not None:
-			writer = DatadirWriter(kwargs.get("output_dir"))
-			ibest_writer = writer[f"{1}best_recog"]
+		if kwargs.get("output_dir") is not None:
+			if not hasattr(self, "writer"):
+				self.writer = DatadirWriter(kwargs.get("output_dir"))
+			ibest_writer = self.writer[f"{1}best_recog"]
 		
 		results = []
 		result_i = {"key": key[0], "value": segments}

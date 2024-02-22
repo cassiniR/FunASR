@@ -23,9 +23,9 @@ If you do not have Docker installed, please refer to [Docker Installation](https
 ### Pulling and launching images
 Use the following command to pull and launch the Docker image for the FunASR runtime-SDK:
 ```shell
-sudo docker pull registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-en-cpu-0.1.3
+sudo docker pull registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-en-cpu-0.1.4
 
-sudo docker run -p 10097:10095 -it --privileged=true -v /root:/workspace/models registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-en-cpu-0.1.3
+sudo docker run -p 10097:10095 -it --privileged=true -v /root:/workspace/models registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-en-cpu-0.1.4
 ```
 Introduction to command parameters: 
 ```text
@@ -42,7 +42,7 @@ nohup bash run_server.sh \
   --download-model-dir /workspace/models \
   --vad-dir damo/speech_fsmn_vad_zh-cn-16k-common-onnx \
   --model-dir damo/speech_paraformer-large_asr_nat-en-16k-common-vocab10020-onnx  \
-  --punc-dir damo/punc_ct-transformer_cn-en-common-vocab471067-large-onnx > log.out 2>&1 &
+  --punc-dir damo/punc_ct-transformer_cn-en-common-vocab471067-large-onnx > log.txt 2>&1 &
 
 # If you want to close ssl，please add：--certfile 0
 ```
@@ -58,7 +58,7 @@ nohup bash run_server.sh \
   --vad-dir damo/speech_fsmn_vad_zh-cn-16k-common-onnx \
   --punc-dir damo/punc_ct-transformer_cn-en-common-vocab471067-large-onnx \
   --certfile  ../../../ssl_key/server.crt \
-  --keyfile ../../../ssl_key/server.key > log.out 2>&1 &
+  --keyfile ../../../ssl_key/server.key > log.txt 2>&1 &
  ```
 
 Introduction to run_server.sh parameters: 
