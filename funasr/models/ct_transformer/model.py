@@ -3,6 +3,7 @@
 # Copyright FunASR (https://github.com/alibaba-damo-academy/FunASR). All Rights Reserved.
 #  MIT License  (https://opensource.org/licenses/MIT)
 
+import copy
 import torch
 import numpy as np
 import torch.nn.functional as F
@@ -16,7 +17,6 @@ from funasr.train_utils.device_funcs import force_gatherable
 from funasr.utils.load_utils import load_audio_text_image_video
 from funasr.models.transformer.utils.nets_utils import make_pad_mask
 from funasr.models.ct_transformer.utils import split_to_mini_sentence, split_words
-
 
 if LooseVersion(torch.__version__) >= LooseVersion("1.6.0"):
     from torch.cuda.amp import autocast
@@ -341,12 +341,80 @@ class CTTransformer(torch.nn.Module):
                     new_mini_sentence_out = new_mini_sentence + "."
                     new_mini_sentence_punc_out = new_mini_sentence_punc[:-1] + [self.sentence_end_id]
                     if len(punctuations): punctuations[-1] = 2
-            # keep a punctuations array for punc segment
+            # keep a punctuations array for punc segment 
             if punc_array is None:
                 punc_array = punctuations
             else:
                 punc_array = torch.cat([punc_array, punctuations], dim=0)
+        # post processing when using word level punc model
+        if jieba_usr_dict:
+            len_tokens = len(tokens)
+            new_punc_array = copy.copy(punc_array).tolist()
+            # for i, (token, punc_id) in enumerate(zip(tokens[::-1], punc_array.tolist()[::-1])):
+            for i, token in enumerate(tokens[::-1]):
+                if '\u0e00' <= token[0] <= '\u9fa5': # ignore en words
+                    if len(token) > 1:
+                        num_append = len(token) - 1
+                        ind_append = len_tokens - i - 1
+                        for _ in range(num_append):
+                            new_punc_array.insert(ind_append, 1)
+            punc_array = torch.tensor(new_punc_array)
+        
         result_i = {"key": key[0], "text": new_mini_sentence_out, "punc_array": punc_array}
         results.append(result_i)
         return results, meta_data
 
+    def export(
+        self,
+        **kwargs,
+    ):
+
+        is_onnx = kwargs.get("type", "onnx") == "onnx"
+        encoder_class = tables.encoder_classes.get(kwargs["encoder"]+"Export")
+        self.encoder = encoder_class(self.encoder, onnx=is_onnx)
+
+        self.forward = self.export_forward
+        
+        return self
+
+    def export_forward(self, inputs: torch.Tensor, text_lengths: torch.Tensor):
+        """Compute loss value from buffer sequences.
+
+        Args:
+            input (torch.Tensor): Input ids. (batch, len)
+            hidden (torch.Tensor): Target ids. (batch, len)
+
+        """
+        x = self.embed(inputs)
+        h, _ = self.encoder(x, text_lengths)
+        y = self.decoder(h)
+        return y
+
+    def export_dummy_inputs(self):
+        length = 120
+        text_indexes = torch.randint(0, self.embed.num_embeddings, (2, length)).type(torch.int32)
+        text_lengths = torch.tensor([length-20, length], dtype=torch.int32)
+        return (text_indexes, text_lengths)
+
+    def export_input_names(self):
+        return ['inputs', 'text_lengths']
+
+    def export_output_names(self):
+        return ['logits']
+
+    def export_dynamic_axes(self):
+        return {
+            'inputs': {
+                0: 'batch_size',
+                1: 'feats_length'
+            },
+            'text_lengths': {
+                0: 'batch_size',
+            },
+            'logits': {
+                0: 'batch_size',
+                1: 'logits_length'
+            },
+        }
+    def export_name(self):
+        return "model.onnx"

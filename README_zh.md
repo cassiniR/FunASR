@@ -29,6 +29,9 @@ FunASR希望在语音识别的学术研究和工业应用之间架起一座桥�
 
 <a name="最新动态"></a>
 ## 最新动态
+- 2024/03/05：新增加Qwen-Audio与Qwen-Audio-Chat音频文本模态大模型，在多个音频领域测试榜单刷榜，中支持语音对话，详细用法见 [示例](examples/industrial_data_pretraining/qwen_audio)。
+- 2024/03/05：新增加Whisper-large-v3模型支持，多语言语音识别/翻译/语种识别，支持从 [modelscope](examples/industrial_data_pretraining/whisper/demo.py)仓库下载，也支持从 [openai](examples/industrial_data_pretraining/whisper/demo_from_openai.py)仓库下载模型。
+- 2024/03/05: 中文离线文件转写服务 4.4、英文离线文件转写服务 1.5、中文实时语音听写服务 1.9 发布，docker镜像支持arm64平台，升级modelscope版本；详细信息参阅([部署文档](runtime/readme_cn.md))
 - 2024/01/30：funasr-1.0发布，更新说明[文档](https://github.com/alibaba-damo-academy/FunASR/discussions/1319)
 - 2024/01/30：新增加情感识别 [模型链接](https://www.modelscope.cn/models/iic/emotion2vec_base_finetuned/summary)，原始模型 [repo](https://github.com/ddlBoJack/emotion2vec).
 - 2024/01/25: 中文离线文件转写服务 4.2、英文离线文件转写服务 1.3，优化vad数据处理方式，大幅降低峰值内存占用，内存泄漏优化；中文实时语音听写服务 1.7 发布，客户端优化；详细信息参阅([部署文档](runtime/readme_cn.md))
@@ -68,20 +71,22 @@ pip3 install -U modelscope
 
 FunASR开源了大量在工业数据上预训练模型，您可以在[模型许可协议](./MODEL_LICENSE)下自由使用、复制、修改和分享FunASR模型，下面列举代表性的模型，更多模型请参考[模型仓库]()。
 
-（注：[🤗]()表示Huggingface模型仓库链接，[⭐]()表示ModelScope模型仓库链接）
+（注：⭐ 表示ModelScope模型仓库，🤗 表示Huggingface模型仓库，🍀表示OpenAI模型仓库）
 
 
-|                                         模型名字                                                                                                                 |        任务详情        |     训练数据     | 参数量  |
-|:------------------------------------------------------------------------------------------------------------------------------------------------------------:|:------------------:|:------------:|:----:|
-| paraformer-zh <br> ([⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch/summary)  [🤗](https://huggingface.co/funasr/paraformer-tp) ) |  语音识别，带时间戳输出，非实时   |  60000小时，中文  | 220M |
-|   paraformer-zh-streaming <br> ( [⭐](https://modelscope.cn/models/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online/summary) [🤗](https://huggingface.co/funasr/paraformer-zh-streaming) )   |      语音识别，实时       |  60000小时，中文  | 220M |
-|      paraformer-en <br> ( [⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-en-16k-common-vocab10020/summary) [🤗](https://huggingface.co/funasr/paraformer-en) )      |      语音识别，非实时      |  50000小时，英文  | 220M |
-|                  conformer-en <br> ( [⭐](https://modelscope.cn/models/damo/speech_conformer_asr-en-16k-vocab4199-pytorch/summary) [🤗](https://huggingface.co/funasr/conformer-en) )                   |      语音识别，非实时      |  50000小时，英文  | 220M |
-|                  ct-punc <br> ( [⭐](https://modelscope.cn/models/damo/punc_ct-transformer_cn-en-common-vocab471067-large/summary) [🤗](https://huggingface.co/funasr/ct-punc) )                   |        标点恢复        |  100M，中文与英文  | 1.1G | 
-|                       fsmn-vad <br> ( [⭐](https://modelscope.cn/models/damo/speech_fsmn_vad_zh-cn-16k-common-pytorch/summary) [🤗](https://huggingface.co/funasr/fsmn-vad) )                       |     语音端点检测，实时      | 5000小时，中文与英文 | 0.4M | 
-|                       fa-zh <br> ( [⭐](https://modelscope.cn/models/damo/speech_timestamp_prediction-v1-16k-offline/summary) [🤗](https://huggingface.co/funasr/fa-zh) )                        |      字级别时间戳预测      |  50000小时，中文  | 38M  |
-|                           cam++ <br> ( [⭐](https://modelscope.cn/models/iic/speech_campplus_sv_zh-cn_16k-common/summary) [🤗](https://huggingface.co/funasr/campplus) )                            |      说话人确认/分割      |   5000小时     |    7.2M    | 
-
+|                                                                                                     模型名字                                                                                                      |        任务详情        |     训练数据     | 参数量  | 
+|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:------------------:|:------------:|:----:|
+|    paraformer-zh <br> ([⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch/summary)  [🤗](https://huggingface.co/funasr/paraformer-tp) )    |  语音识别，带时间戳输出，非实时   |  60000小时，中文  | 220M |
+| paraformer-zh-streaming <br> ( [⭐](https://modelscope.cn/models/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online/summary) [🤗](https://huggingface.co/funasr/paraformer-zh-streaming) ) |      语音识别，实时       |  60000小时，中文  | 220M |
+|         paraformer-en <br> ( [⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-en-16k-common-vocab10020/summary) [🤗](https://huggingface.co/funasr/paraformer-en) )         |      语音识别，非实时      |  50000小时，英文  | 220M |
+|                      conformer-en <br> ( [⭐](https://modelscope.cn/models/damo/speech_conformer_asr-en-16k-vocab4199-pytorch/summary) [🤗](https://huggingface.co/funasr/conformer-en) )                      |      语音识别，非实时      |  50000小时，英文  | 220M |
+|                        ct-punc <br> ( [⭐](https://modelscope.cn/models/damo/punc_ct-transformer_cn-en-common-vocab471067-large/summary) [🤗](https://huggingface.co/funasr/ct-punc) )                         |        标点恢复        |  100M，中文与英文  | 1.1G | 
+|                            fsmn-vad <br> ( [⭐](https://modelscope.cn/models/damo/speech_fsmn_vad_zh-cn-16k-common-pytorch/summary) [🤗](https://huggingface.co/funasr/fsmn-vad) )                             |     语音端点检测，实时      | 5000小时，中文与英文 | 0.4M | 
+|                              fa-zh <br> ( [⭐](https://modelscope.cn/models/damo/speech_timestamp_prediction-v1-16k-offline/summary) [🤗](https://huggingface.co/funasr/fa-zh) )                               |      字级别时间戳预测      |  50000小时，中文  | 38M  |
+|                                 cam++ <br> ( [⭐](https://modelscope.cn/models/iic/speech_campplus_sv_zh-cn_16k-common/summary) [🤗](https://huggingface.co/funasr/campplus) )                                 |      说话人确认/分割      |    5000小时    | 7.2M | 
+|                                     Whisper-large-v3 <br> ([⭐](https://www.modelscope.cn/models/iic/Whisper-large-v3/summary)  [🍀](https://github.com/openai/whisper) )                                      |  语音识别，带时间戳输出，非实时   |     多语言      |  1G  |
+|                                         Qwen-Audio <br> ([⭐](examples/industrial_data_pretraining/qwen_audio/demo.py)  [🤗](https://huggingface.co/Qwen/Qwen-Audio) )                                         |  音频文本多模态大模型（预训练）   |     多语言      |  8B  |
+|                   Qwen-Audio-Chat <br> ([⭐](examples/industrial_data_pretraining/qwen_audio/demo_chat.py)  [🤗](https://huggingface.co/Qwen/Qwen-Audio-Chat) )                                                | 音频文本多模态大模型（chat版本） |     多语言      |  8B  |
 
 <a name="快速开始"></a>
 ## 快速开始
@@ -109,7 +114,7 @@ res = model.generate(input=f"{model.model_path}/example/asr_example.wav",
             hotword='魔搭')
 print(res)
 ```
-注：`model_hub`：表示模型仓库，`ms`为选择modelscope下载，`hf`为选择huggingface下载。
+注：`hub`：表示模型仓库，`ms`为选择modelscope下载，`hf`为选择huggingface下载。
 
 ### 实时语音识别
 
@@ -205,6 +210,35 @@ print(res)
 ```
 更多详细用法（[示例](https://github.com/alibaba-damo-academy/FunASR/tree/main/examples/industrial_data_pretraining)）
 
+## 导出ONNX
+### 从命令行导出
+```shell
+funasr-export ++model=paraformer ++quantize=false
+```
+
+### 从Python导出
+```python
+from funasr import AutoModel
+
+model = AutoModel(model="paraformer")
+
+res = model.export(quantize=False)
+```
+
+### 测试ONNX
+```python
+# pip3 install -U funasr-onnx
+from funasr_onnx import Paraformer
+model_dir = "damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch"
+model = Paraformer(model_dir, batch_size=1, quantize=True)
+
+wav_path = ['~/.cache/modelscope/hub/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch/example/asr_example.wav']
+
+result = model(wav_path)
+print(result)
+```
+
+更多例子请参考 [样例](runtime/python/onnxruntime)
 
 <a name="服务部署"></a>
 ## 服务部署

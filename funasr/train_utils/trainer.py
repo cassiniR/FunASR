@@ -163,7 +163,7 @@ class Trainer:
                 self.scaler.load_state_dict(checkpoint['scaler_state'])
             print(f"Checkpoint loaded successfully from '{ckpt}'")
         else:
-            print(f"No checkpoint found at '{ckpt}', starting from scratch")
+            print(f"No checkpoint found at '{ckpt}', does not resume status!")
 
         if self.use_ddp or self.use_fsdp:
             dist.barrier()
@@ -402,3 +402,5 @@ class Trainer:
                         for key, var in speed_stats.items():
                             self.writer.add_scalar(f'rank{self.local_rank}_{key}/val', eval(var),
                                                    epoch * len(self.dataloader_val) + batch_idx)
+
+        self.model.train()

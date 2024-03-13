@@ -40,3 +40,56 @@ print(res)
   ```[audio_sample1, audio_sample2, ..., audio_sampleN]```
   - fbank输入，支持组batch。shape为[batch, frames, dim]，类型为torch.Tensor，例如
 - `output_dir`: None （默认），如果设置，输出结果的输出路径
+
+
+## 微调
+
+#### 准备数据
+
+`train_text.txt`
+
+左边为数据唯一ID，需与`train_wav.scp`中的`ID`一一对应
+右边为音频文件标注文本
+
+```bash
+ID0012W0013 当客户风险承受能力评估依据发生变化时
+ID0012W0014 杨涛不得不将工厂关掉
+```
+
+
+`train_wav.scp`
+
+左边为数据唯一ID，需与`train_text.txt`中的`ID`一一对应
+右边为音频文件的绝对路径
+
+```bash
+ID0012W0013 /Users/zhifu/funasr_github/test_local/aishell2_dev_ios/wav/D0012/ID0012W0013.wav
+ID0012W0014 /Users/zhifu/funasr_github/test_local/aishell2_dev_ios/wav/D0012/ID0012W0014.wav
+```
+
+#### 训练
+
+```bash
+cd examples/industrial_data_pretraining/paraformer
+sh finetune_from_local.sh
+```
+
+**查看训练日志**
+
+```bash
+tensorboard --logdir /xxxx/FunASR/examples/industrial_data_pretraining/paraformer/outputs/log/tensorboard
+```
+
+
+## 导出onnx
+
+```python
+from funasr import AutoModel
+wav_file = "https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/test_audio/vad_example.wav"
+
+model = AutoModel(model="iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch",
+                  model_revision="v2.0.4")
+
+res = model.export(input=wav_file, type="onnx", quantize=False)
+print(res)
+```

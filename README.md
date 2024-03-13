@@ -27,6 +27,9 @@
 
 <a name="whats-new"></a>
 ## What's new:
+- 2024/03/05：Added the Qwen-Audio and Qwen-Audio-Chat large-scale audio-text multimodal models, which have topped multiple audio domain leaderboards. These models support speech dialogue, [usage](examples/industrial_data_pretraining/qwen_audio).
+- 2024/03/05：Added support for the Whisper-large-v3 model, a multitasking model that can perform multilingual speech recognition, speech translation, and language identification. It can be downloaded from the[modelscope](examples/industrial_data_pretraining/whisper/demo.py), and [openai](examples/industrial_data_pretraining/whisper/demo_from_openai.py).
+- 2024/03/05: Offline File Transcription Service 4.4, Offline File Transcription Service of English 1.5，Real-time Transcription Service 1.9 released，docker image supports ARM64 platform, update modelscope；([docs](runtime/readme.md))
 - 2024/01/30：funasr-1.0 has been released ([docs](https://github.com/alibaba-damo-academy/FunASR/discussions/1319))
 - 2024/01/30：emotion recognition models are new supported. [model link](https://www.modelscope.cn/models/iic/emotion2vec_base_finetuned/summary), modified from [repo](https://github.com/ddlBoJack/emotion2vec).
 - 2024/01/25: Offline File Transcription Service 4.2, Offline File Transcription Service of English 1.3 released，optimized the VAD (Voice Activity Detection) data processing method, significantly reducing peak memory usage, memory leak optimization; Real-time Transcription Service 1.7 released，optimizatized the client-side；([docs](runtime/readme.md))
@@ -66,19 +69,23 @@ pip3 install -U modelscope
 ## Model Zoo
 FunASR has open-sourced a large number of pre-trained models on industrial data. You are free to use, copy, modify, and share FunASR models under the [Model License Agreement](./MODEL_LICENSE). Below are some representative models, for more models please refer to the [Model Zoo]().
 
-(Note: 🤗 represents the Huggingface model zoo link, ⭐ represents the ModelScope model zoo link)
+(Note: ⭐ represents the ModelScope model zoo, 🤗 represents the Huggingface model zoo, 🍀 represents the OpenAI model zoo)
 
 
-|                                                                                                         Model Name                                                                                                         |                    Task Details                    |          Training Data           | Parameters |
-|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------:|:--------------------------------:|:----------:|
-|          paraformer-zh <br> ([⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch/summary)  [🤗](https://huggingface.co/funasr/paraformer-tp) )           | speech recognition, with timestamps, non-streaming |      60000 hours, Mandarin       |    220M    |
-| <nobr>paraformer-zh-streaming <br> ( [⭐](https://modelscope.cn/models/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online/summary) [🤗](https://huggingface.co/funasr/paraformer-zh-streaming) )</nobr> |           speech recognition, streaming            |      60000 hours, Mandarin       |    220M    |
-|               paraformer-en <br> ( [⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-en-16k-common-vocab10020/summary) [🤗](https://huggingface.co/funasr/paraformer-en) )                | speech recognition, with timestamps, non-streaming |       50000 hours, English       |    220M    |
-|                            conformer-en <br> ( [⭐](https://modelscope.cn/models/damo/speech_conformer_asr-en-16k-vocab4199-pytorch/summary) [🤗](https://huggingface.co/funasr/conformer-en) )                             |         speech recognition, non-streaming          |       50000 hours, English       |    220M    |
-|                               ct-punc <br> ( [⭐](https://modelscope.cn/models/damo/punc_ct-transformer_cn-en-common-vocab471067-large/summary) [🤗](https://huggingface.co/funasr/ct-punc) )                               |              punctuation restoration               |    100M, Mandarin and English    |    1.1G    | 
-|                                   fsmn-vad <br> ( [⭐](https://modelscope.cn/models/damo/speech_fsmn_vad_zh-cn-16k-common-pytorch/summary) [🤗](https://huggingface.co/funasr/fsmn-vad) )                                   |              voice activity detection              | 5000 hours, Mandarin and English |    0.4M    | 
-|                                     fa-zh <br> ( [⭐](https://modelscope.cn/models/damo/speech_timestamp_prediction-v1-16k-offline/summary) [🤗](https://huggingface.co/funasr/fa-zh) )                                     |                timestamp prediction                |       5000 hours, Mandarin       |    38M     | 
-|                                       cam++ <br> ( [⭐](https://modelscope.cn/models/iic/speech_campplus_sv_zh-cn_16k-common/summary) [🤗](https://huggingface.co/funasr/campplus) )                                        |        speaker verification/diarization            |            5000 hours            |    7.2M    | 
+|                                                                                                         Model Name                                                                                                         |                     Task Details                      |          Training Data           | Parameters |
+|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:-----------------------------------------------------:|:--------------------------------:|:----------:|
+|          paraformer-zh <br> ([⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch/summary)  [🤗](https://huggingface.co/funasr/paraformer-tp) )           |  speech recognition, with timestamps, non-streaming   |      60000 hours, Mandarin       |    220M    |
+| <nobr>paraformer-zh-streaming <br> ( [⭐](https://modelscope.cn/models/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online/summary) [🤗](https://huggingface.co/funasr/paraformer-zh-streaming) )</nobr> |             speech recognition, streaming             |      60000 hours, Mandarin       |    220M    |
+|               paraformer-en <br> ( [⭐](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-en-16k-common-vocab10020/summary) [🤗](https://huggingface.co/funasr/paraformer-en) )                | speech recognition, without timestamps, non-streaming |       50000 hours, English       |    220M    |
+|                            conformer-en <br> ( [⭐](https://modelscope.cn/models/damo/speech_conformer_asr-en-16k-vocab4199-pytorch/summary) [🤗](https://huggingface.co/funasr/conformer-en) )                             |           speech recognition, non-streaming           |       50000 hours, English       |    220M    |
+|                               ct-punc <br> ( [⭐](https://modelscope.cn/models/damo/punc_ct-transformer_cn-en-common-vocab471067-large/summary) [🤗](https://huggingface.co/funasr/ct-punc) )                               |                punctuation restoration                |    100M, Mandarin and English    |    1.1G    | 
+|                                   fsmn-vad <br> ( [⭐](https://modelscope.cn/models/damo/speech_fsmn_vad_zh-cn-16k-common-pytorch/summary) [🤗](https://huggingface.co/funasr/fsmn-vad) )                                   |               voice activity detection                | 5000 hours, Mandarin and English |    0.4M    | 
+|                                     fa-zh <br> ( [⭐](https://modelscope.cn/models/damo/speech_timestamp_prediction-v1-16k-offline/summary) [🤗](https://huggingface.co/funasr/fa-zh) )                                     |                 timestamp prediction                  |       5000 hours, Mandarin       |    38M     | 
+|                                       cam++ <br> ( [⭐](https://modelscope.cn/models/iic/speech_campplus_sv_zh-cn_16k-common/summary) [🤗](https://huggingface.co/funasr/campplus) )                                        |           speaker verification/diarization            |            5000 hours            |    7.2M    | 
+|                                                  Whisper-large-v2 <br> ([⭐](https://www.modelscope.cn/models/iic/speech_whisper-large_asr_multilingual/summary)  [🍀](https://github.com/openai/whisper) )                                                  |  speech recognition, with timestamps, non-streaming   |          multilingual            |    1.5G    |
+|                                                Whisper-large-v3 <br> ([⭐](https://www.modelscope.cn/models/iic/Whisper-large-v3/summary)  [🍀](https://github.com/openai/whisper) )                                                 |  speech recognition, with timestamps, non-streaming   |          multilingual            |    1.5G    |
+|                                         Qwen-Audio <br> ([⭐](examples/industrial_data_pretraining/qwen_audio/demo.py)  [🤗](https://huggingface.co/Qwen/Qwen-Audio) )                                         |      audio-text multimodal models (pretraining)       |     multilingual      |  8B  |
+|                   Qwen-Audio-Chat <br> ([⭐](examples/industrial_data_pretraining/qwen_audio/demo_chat.py)  [🤗](https://huggingface.co/Qwen/Qwen-Audio-Chat) )                                                |          audio-text multimodal models (chat)          |     multilingual      |  8B  |
 
 
 
@@ -113,7 +120,7 @@ res = model.generate(input=f"{model.model_path}/example/asr_example.wav",
                      hotword='魔搭')
 print(res)
 ```
-Note: `model_hub`: represents the model repository, `ms` stands for selecting ModelScope download, `hf` stands for selecting Huggingface download.
+Note: `hub`: represents the model repository, `ms` stands for selecting ModelScope download, `hf` stands for selecting Huggingface download.
 
 ### Speech Recognition (Streaming)
 ```python
@@ -203,7 +210,37 @@ print(res)
 
 More examples ref to [docs](https://github.com/alibaba-damo-academy/FunASR/tree/main/examples/industrial_data_pretraining)
 
-[//]: # (FunASR supports inference and fine-tuning of models trained on industrial datasets of tens of thousands of hours. For more details, please refer to &#40;[modelscope_egs]&#40;https://alibaba-damo-academy.github.io/FunASR/en/modelscope_pipeline/quick_start.html&#41;&#41;. It also supports training and fine-tuning of models on academic standard datasets. For more details, please refer to&#40;[egs]&#40;https://alibaba-damo-academy.github.io/FunASR/en/academic_recipe/asr_recipe.html&#41;&#41;. The models include speech recognition &#40;ASR&#41;, speech activity detection &#40;VAD&#41;, punctuation recovery, language model, speaker verification, speaker separation, and multi-party conversation speech recognition. For a detailed list of models, please refer to the [Model Zoo]&#40;https://github.com/alibaba-damo-academy/FunASR/blob/main/docs/model_zoo/modelscope_models.md&#41;:)
+
+## Export ONNX
+
+### Command-line usage
+```shell
+funasr-export ++model=paraformer ++quantize=false ++device=cpu
+```
+
+### Python
+```python
+from funasr import AutoModel
+
+model = AutoModel(model="paraformer", device="cpu")
+
+res = model.export(quantize=False)
+```
+
+### Text ONNX
+```python
+# pip3 install -U funasr-onnx
+from funasr_onnx import Paraformer
+model_dir = "damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch"
+model = Paraformer(model_dir, batch_size=1, quantize=True)
+
+wav_path = ['~/.cache/modelscope/hub/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch/example/asr_example.wav']
+
+result = model(wav_path)
+print(result)
+```
+
+More examples ref to [demo](runtime/python/onnxruntime)
 
 ## Deployment Service
 FunASR supports deploying pre-trained or further fine-tuned models for service. Currently, it supports the following types of service deployment:
@@ -222,9 +259,9 @@ If you encounter problems in use, you can directly raise Issues on the github pa
 
 You can also scan the following DingTalk group or WeChat group QR code to join the community group for communication and discussion.
 
-|DingTalk group |                     WeChat group                      |
-|:---:|:-----------------------------------------------------:|
-|<div align="left"><img src="docs/images/dingding.jpg" width="250"/> | <img src="docs/images/wechat.png" width="215"/></div> |
+|                           DingTalk group                            |                     WeChat group                      |
+|:-------------------------------------------------------------------:|:-----------------------------------------------------:|
+| <div align="left"><img src="docs/images/dingding.png" width="250"/> | <img src="docs/images/wechat.png" width="215"/></div> |
 
 ## Contributors
 

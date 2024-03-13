@@ -14,6 +14,7 @@ import os.path
 import numpy as np
 from tqdm import tqdm
 
+from funasr.utils.misc import deep_update
 from funasr.register import tables
 from funasr.utils.load_utils import load_bytes
 from funasr.download.file import download_from_url
@@ -23,8 +24,9 @@ from funasr.utils.vad_utils import slice_padding_audio_samples
 from funasr.utils.load_utils import load_audio_text_image_video
 from funasr.train_utils.set_all_random_seed import set_all_random_seed
 from funasr.train_utils.load_pretrained_model import load_pretrained_model
-from funasr.models.campplus.utils import sv_chunk, postprocess, distribute_spk
+from funasr.utils import export_utils
 try:
+    from funasr.models.campplus.utils import sv_chunk, postprocess, distribute_spk
     from funasr.models.campplus.cluster_backend import ClusterBackend
 except:
     print("If you want to use the speaker diarization, please `pip install hdbscan`")
@@ -41,11 +43,12 @@ def prepare_data_iterator(data_in, input_len=None, data_type=None, key=None):
     """
     data_list = []
     key_list = []
-    filelist = [".scp", ".txt", ".json", ".jsonl"]
+    filelist = [".scp", ".txt", ".json", ".jsonl", ".text"]
     
     chars = string.ascii_letters + string.digits
     if isinstance(data_in, str) and data_in.startswith('http'): # url
         data_in = download_from_url(data_in)
+
     if isinstance(data_in, str) and os.path.exists(data_in): # wav_path; filelist: wav.scp, file.jsonl;text.txt;
         _, file_extension = os.path.splitext(data_in)
         file_extension = file_extension.lower()
@@ -97,7 +100,7 @@ class AutoModel:
     def __init__(self, **kwargs):
         if not kwargs.get("disable_log", True):
             tables.print()
-        
+
         model, kwargs = self.build_model(**kwargs)
         
         # if vad_model is not None, build vad model else None
@@ -142,45 +145,44 @@ class AutoModel:
     def build_model(self, **kwargs):
         assert "model" in kwargs
         if "model_conf" not in kwargs:
-            logging.info("download models from model hub: {}".format(kwargs.get("model_hub", "ms")))
+            logging.info("download models from model hub: {}".format(kwargs.get("hub", "ms")))
             kwargs = download_model(**kwargs)
         
         set_all_random_seed(kwargs.get("seed", 0))
-        
+
         device = kwargs.get("device", "cuda")
         if not torch.cuda.is_available() or kwargs.get("ngpu", 1) == 0:
             device = "cpu"
             kwargs["batch_size"] = 1
         kwargs["device"] = device
-        
-        if kwargs.get("ncpu", None):
-            torch.set_num_threads(kwargs.get("ncpu"))
+
+        torch.set_num_threads(kwargs.get("ncpu", 4))
         
         # build tokenizer
         tokenizer = kwargs.get("tokenizer", None)
         if tokenizer is not None:
             tokenizer_class = tables.tokenizer_classes.get(tokenizer)
-            tokenizer = tokenizer_class(**kwargs["tokenizer_conf"])
+            tokenizer_conf = kwargs.get("tokenizer_conf", {})
+            tokenizer = tokenizer_class(**tokenizer_conf)
             kwargs["tokenizer"] = tokenizer
 
             kwargs["token_list"] = tokenizer.token_list if hasattr(tokenizer, "token_list") else None
             kwargs["token_list"] = tokenizer.get_vocab() if hasattr(tokenizer, "get_vocab") else kwargs["token_list"]
-            vocab_size = len(kwargs["token_list"])
+            vocab_size = len(kwargs["token_list"]) if kwargs["token_list"] is not None else -1
         else:
             vocab_size = -1
-        
         # build frontend
         frontend = kwargs.get("frontend", None)
+        kwargs["input_size"] = None
         if frontend is not None:
             frontend_class = tables.frontend_classes.get(frontend)
             frontend = frontend_class(**kwargs["frontend_conf"])
             kwargs["frontend"] = frontend
-            kwargs["input_size"] = frontend.output_size()
+            kwargs["input_size"] = frontend.output_size() if hasattr(frontend, "output_size") else None
         
         # build model
         model_class = tables.model_classes.get(kwargs["model"])
-        model = model_class(**kwargs, **kwargs["model_conf"], vocab_size=vocab_size)
-        
+        model = model_class(**kwargs, **kwargs.get("model_conf", {}), vocab_size=vocab_size)
         model.to(device)
         
         # init_param
@@ -203,7 +205,7 @@ class AutoModel:
     
     def __call__(self, *args, **cfg):
         kwargs = self.kwargs
-        kwargs.update(cfg)
+        deep_update(kwargs, cfg)
         res = self.model(*args, kwargs)
         return res
 
@@ -216,16 +218,16 @@ class AutoModel:
         
     def inference(self, input, input_len=None, model=None, kwargs=None, key=None, **cfg):
         kwargs = self.kwargs if kwargs is None else kwargs
-        kwargs.update(cfg)
+        deep_update(kwargs, cfg)
         model = self.model if model is None else model
         model.eval()
 
         batch_size = kwargs.get("batch_size", 1)
         # if kwargs.get("device", "cpu") == "cpu":
         #     batch_size = 1
-        
+
         key_list, data_list = prepare_data_iterator(input, input_len=input_len, data_type=kwargs.get("data_type", None), key=key)
-        
+
         speed_stats = {}
         asr_result_list = []
         num_samples = len(data_list)
@@ -238,13 +240,17 @@ class AutoModel:
             data_batch = data_list[beg_idx:end_idx]
             key_batch = key_list[beg_idx:end_idx]
             batch = {"data_in": data_batch, "key": key_batch}
+
             if (end_idx - beg_idx) == 1 and kwargs.get("data_type", None) == "fbank": # fbank
                 batch["data_in"] = data_batch[0]
                 batch["data_lengths"] = input_len
 
             time1 = time.perf_counter()
             with torch.no_grad():
-                results, meta_data = model.inference(**batch, **kwargs)
+                 res = model.inference(**batch, **kwargs)
+                 if isinstance(res, (list, tuple)):
+                    results = res[0]
+                    meta_data = res[1] if len(res) > 1 else {}
             time2 = time.perf_counter()
 
             asr_result_list.extend(results)
@@ -275,7 +281,7 @@ class AutoModel:
     def inference_with_vad(self, input, input_len=None, **cfg):
         kwargs = self.kwargs
         # step.1: compute the vad model
-        self.vad_kwargs.update(cfg)
+        deep_update(self.vad_kwargs, cfg)
         beg_vad = time.time()
         res = self.inference(input, input_len=input_len, model=self.vad_model, kwargs=self.vad_kwargs, **cfg)
         end_vad = time.time()
@@ -283,7 +289,7 @@ class AutoModel:
 
         # step.2 compute asr model
         model = self.model
-        kwargs.update(cfg)
+        deep_update(kwargs, cfg)
         batch_size = int(kwargs.get("batch_size_s", 300))*1000
         batch_size_threshold_ms = int(kwargs.get("batch_size_threshold_s", 60))*1000
         kwargs["batch_size"] = batch_size
@@ -392,9 +398,10 @@ class AutoModel:
             # step.3 compute punc model
             if self.punc_model is not None:
                 if not len(result["text"]):
-                    result['raw_text'] = ''
+                    if return_raw_text:
+                        result['raw_text'] = ''
                 else:
-                    self.punc_kwargs.update(cfg)
+                    deep_update(self.punc_kwargs, cfg)
                     punc_res = self.inference(result["text"], model=self.punc_model, kwargs=self.punc_kwargs, **cfg)
                     raw_text = copy.copy(result["text"])
                     if return_raw_text: result['raw_text'] = raw_text
@@ -434,10 +441,13 @@ class AutoModel:
                 distribute_spk(sentence_list, sv_output)
                 result['sentence_info'] = sentence_list
             elif kwargs.get("sentence_timestamp", False):
-                sentence_list = timestamp_sentence(punc_res[0]['punc_array'],
-                                                   result['timestamp'],
-                                                   raw_text,
-                                                   return_raw_text=return_raw_text)
+                if not len(result['text']):
+                    sentence_list = []
+                else:
+                    sentence_list = timestamp_sentence(punc_res[0]['punc_array'],
+                                                       result['timestamp'],
+                                                       raw_text,
+                                                       return_raw_text=return_raw_text)
                 result['sentence_info'] = sentence_list
             if "spk_embedding" in result: del result['spk_embedding']
 
@@ -459,3 +469,45 @@ class AutoModel:
         #                      f"time_escape_all: {time_escape_total_all_samples:0.3f}")
         return results_ret_list
 
+    def export(self, input=None,
+               type : str = "onnx",
+               quantize: bool = False,
+               fallback_num: int = 5,
+               calib_num: int = 100,
+               opset_version: int = 14,
+               **cfg):
+    
+        device = cfg.get("device", "cpu")
+        model = self.model.to(device=device)
+        kwargs = self.kwargs
+        deep_update(kwargs, cfg)
+        kwargs["device"] = device
+        del kwargs["model"]
+        model.eval()
+
+        batch_size = 1
+
+        key_list, data_list = prepare_data_iterator(input, input_len=None, data_type=kwargs.get("data_type", None), key=None)
+
+        with torch.no_grad():
+            
+            if type == "onnx":
+                export_dir = export_utils.export_onnx(
+                                        model=model,
+                                        data_in=data_list,
+                                        quantize=quantize,
+                                        fallback_num=fallback_num,
+                                        calib_num=calib_num,
+                                        opset_version=opset_version,
+                                        **kwargs)
+            else:
+                export_dir = export_utils.export_torchscripts(
+                                        model=model,
+                                        data_in=data_list,
+                                        quantize=quantize,
+                                        fallback_num=fallback_num,
+                                        calib_num=calib_num,
+                                        opset_version=opset_version,
+                                        **kwargs)
+
+        return export_dir

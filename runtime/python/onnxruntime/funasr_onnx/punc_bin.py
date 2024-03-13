@@ -6,7 +6,7 @@ import os.path
 from pathlib import Path
 from typing import List, Union, Tuple
 import numpy as np
-
+import json
 from .utils.utils import (ONNXRuntimeError,
                           OrtInferSession, get_logger,
                           read_yaml)
@@ -48,27 +48,26 @@ class CT_Transformer():
         if not os.path.exists(model_file):
             print(".onnx is not exist, begin to export onnx")
             try:
-                from funasr.export.export_model import ModelExport
+                from funasr import AutoModel
             except:
                 raise "You are exporting onnx, please install funasr and try it again. To install funasr, you could:\n" \
                       "\npip3 install -U funasr\n" \
                       "For the users in China, you could install with the command:\n" \
                       "\npip3 install -U funasr -i https://mirror.sjtu.edu.cn/pypi/web/simple"
-            export_model = ModelExport(
-                cache_dir=cache_dir,
-                onnx=True,
-                device="cpu",
-                quant=quantize,
-            )
-            export_model.export(model_dir)
-            
-        config_file = os.path.join(model_dir, 'punc.yaml')
-        config = read_yaml(config_file)
 
-        self.converter = TokenIDConverter(config['token_list'])
+            model = AutoModel(model=model_dir)
+            model_dir = model.export(quantize=quantize)
+            
+        config_file = os.path.join(model_dir, 'config.yaml')
+        config = read_yaml(config_file)
+        token_list = os.path.join(model_dir, 'tokens.json')
+        with open(token_list, 'r', encoding='utf-8') as f:
+            token_list = json.load(f)
+
+        self.converter = TokenIDConverter(token_list)
         self.ort_infer = OrtInferSession(model_file, device_id, intra_op_num_threads=intra_op_num_threads)
         self.batch_size = 1
-        self.punc_list = config['punc_list']
+        self.punc_list = config["model_conf"]['punc_list']
         self.period = 0
         for i in range(len(self.punc_list)):
             if self.punc_list[i] == ",":
@@ -77,9 +76,9 @@ class CT_Transformer():
                 self.punc_list[i] = "？"
             elif self.punc_list[i] == "。":
                 self.period = i
-        if "seg_jieba" in config:
+        self.jieba_usr_dict_path = os.path.join(model_dir, 'jieba_usr_dict')
+        if os.path.exists(self.jieba_usr_dict_path):
             self.seg_jieba = True
-            self.jieba_usr_dict_path = os.path.join(model_dir, 'jieba_usr_dict')
             self.code_mix_split_words_jieba = code_mix_split_words_jieba(self.jieba_usr_dict_path)
         else:
             self.seg_jieba = False
@@ -176,7 +175,7 @@ class CT_Transformer_VadRealtime(CT_Transformer):
                  intra_op_num_threads: int = 4,
                  cache_dir: str = None
                  ):
-        super(CT_Transformer_VadRealtime, self).__init__(model_dir, batch_size, device_id, quantize, intra_op_num_threads, cache_dir=cache_dir)
+        super().__init__(model_dir, batch_size, device_id, quantize, intra_op_num_threads, cache_dir=cache_dir)
 
     def __call__(self, text: str, param_dict: map, split_size=20):
         cache_key = "cache"

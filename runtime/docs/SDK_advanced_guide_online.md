@@ -8,6 +8,7 @@ FunASR Real-time Speech Recognition Software Package integrates real-time versio
 
 | TIME       | INFO                                                                                | IMAGE VERSION                       | IMAGE ID     |
 |------------|-------------------------------------------------------------------------------------|-------------------------------------|--------------|
+| 2024.03.05 | docker image supports ARM64 platform, update modelscope | funasr-runtime-sdk-online-cpu-0.1.9 | 4a875e08c7a2 |
 | 2024.01.25 | Optimization of the client-side | funasr-runtime-sdk-online-cpu-0.1.7  | 2aa23805572e      |
 | 2024.01.03 | The 2pass-offline mode supports Ngram language model decoding and WFST hotwords, while also addressing known crash issues and memory leak problems | funasr-runtime-sdk-online-cpu-0.1.6  | f99925110d27      |
 | 2023.11.09 | fix bug: without online results                                                     | funasr-runtime-sdk-online-cpu-0.1.5 | b16584b6d38b      |
@@ -28,9 +29,9 @@ If you do not have Docker installed, please refer to [Docker Installation](https
 ### Pull Docker Image
 Use the following command to pull and start the FunASR software package docker image:
 ```shell
-sudo docker pull registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-online-cpu-0.1.8
+sudo docker pull registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-online-cpu-0.1.9
 mkdir -p ./funasr-runtime-resources/models
-sudo docker run -p 10096:10095 -it --privileged=true -v $PWD/funasr-runtime-resources/models:/workspace/models registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-online-cpu-0.1.8
+sudo docker run -p 10096:10095 -it --privileged=true -v $PWD/funasr-runtime-resources/models:/workspace/models registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-online-cpu-0.1.9
 ```
 
 ### Launching the Server
@@ -59,7 +60,7 @@ wget https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/sample/funasr_sa
 For illustration, we will use the Python language client, which supports audio formats (.wav, .pcm) and a multi-file list wav.scp input.
 
 ```shell
-python3 wss_client_asr.py --host "127.0.0.1" --port 10095 --mode 2pass
+python3 funasr_wss_client.py --host "127.0.0.1" --port 10095 --mode 2pass
 ```
 
 ------------------

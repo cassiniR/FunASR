@@ -1,15 +1,28 @@
 import os
 import json
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, DictConfig
 
-from funasr.download.name_maps_from_hub import name_maps_ms, name_maps_hf
+from funasr.download.name_maps_from_hub import name_maps_ms, name_maps_hf, name_maps_openai
 
 
 def download_model(**kwargs):
-    model_hub = kwargs.get("model_hub", "ms")
-    if model_hub == "ms":
+    hub = kwargs.get("hub", "ms")
+    if hub == "ms":
         kwargs = download_from_ms(**kwargs)
-    
+    elif hub == "hf":
+        pass
+    elif hub == "openai":
+        model_or_path = kwargs.get("model")
+        if os.path.exists(model_or_path):
+            # local path
+            kwargs["model_path"] = model_or_path
+            kwargs["model"] = "WhisperWarp"
+        else:
+            # model name
+            if model_or_path in name_maps_openai:
+                model_or_path = name_maps_openai[model_or_path]
+            kwargs["model_path"] = model_or_path
+   
     return kwargs
 
 def download_from_ms(**kwargs):
@@ -17,19 +30,28 @@ def download_from_ms(**kwargs):
     if model_or_path in name_maps_ms:
         model_or_path = name_maps_ms[model_or_path]
     model_revision = kwargs.get("model_revision")
-    if not os.path.exists(model_or_path):
-        model_or_path = get_or_download_model_dir(model_or_path, model_revision, is_training=kwargs.get("is_training"), check_latest=kwargs.get("kwargs", True))
-    kwargs["model_path"] = model_or_path
+    if not os.path.exists(model_or_path) and "model_path" not in kwargs:
+        try:
+            model_or_path = get_or_download_model_dir(model_or_path, model_revision,
+                                                      is_training=kwargs.get("is_training"),
+                                                      check_latest=kwargs.get("check_latest", True))
+        except Exception as e:
+            print(f"Download: {model_or_path} failed!: {e}")
+    
+    kwargs["model_path"] = model_or_path if "model_path" not in kwargs else kwargs["model_path"]
     
     if os.path.exists(os.path.join(model_or_path, "configuration.json")):
         with open(os.path.join(model_or_path, "configuration.json"), 'r', encoding='utf-8') as f:
             conf_json = json.load(f)
+            
             cfg = {}
-            add_file_root_path(model_or_path, conf_json["file_path_metas"], cfg)
+            if "file_path_metas" in conf_json:
+                add_file_root_path(model_or_path, conf_json["file_path_metas"], cfg)
             cfg.update(kwargs)
-            config = OmegaConf.load(cfg["config"])
-            kwargs = OmegaConf.merge(config, cfg)
-        kwargs["model"] = config["model"]
+            if "config" in cfg:
+                config = OmegaConf.load(cfg["config"])
+                kwargs = OmegaConf.merge(config, cfg)
+                kwargs["model"] = config["model"]
     elif os.path.exists(os.path.join(model_or_path, "config.yaml")) and os.path.exists(os.path.join(model_or_path, "model.pt")):
         config = OmegaConf.load(os.path.join(model_or_path, "config.yaml"))
         kwargs = OmegaConf.merge(config, kwargs)
@@ -48,7 +70,9 @@ def download_from_ms(**kwargs):
             kwargs["frontend_conf"]["cmvn_file"] = os.path.join(model_or_path, "am.mvn")
         if os.path.exists(os.path.join(model_or_path, "jieba_usr_dict")):
             kwargs["jieba_usr_dict"] = os.path.join(model_or_path, "jieba_usr_dict")
-    return OmegaConf.to_container(kwargs, resolve=True)
+    if isinstance(kwargs, DictConfig):
+        kwargs = OmegaConf.to_container(kwargs, resolve=True)
+    return kwargs
 
 def add_file_root_path(model_or_path: str, file_path_metas: dict, cfg = {}):
     

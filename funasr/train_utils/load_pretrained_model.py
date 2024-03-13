@@ -7,7 +7,7 @@ import logging
 import torch
 import torch.nn
 import torch.optim
-
+import pdb
 
 def filter_state_dict(
 	dst_state: Dict[str, Union[float, torch.Tensor]],
@@ -63,14 +63,15 @@ def load_pretrained_model(
 	dst_state = obj.state_dict()
 	
 	print(f"ckpt: {path}")
+
 	if oss_bucket is None:
 		src_state = torch.load(path, map_location=map_location)
 	else:
 		buffer = BytesIO(oss_bucket.get_object(path).read())
 		src_state = torch.load(buffer, map_location=map_location)
-	if "state_dict" in src_state:
-		src_state = src_state["state_dict"]
-	
+		
+	src_state = src_state["state_dict"] if "state_dict" in src_state else src_state
+	src_state = src_state["model_state_dict"] if "model_state_dict" in src_state else src_state
 	src_state = src_state["model"] if "model" in src_state else src_state
 	
 	if isinstance(scope_map, str):
