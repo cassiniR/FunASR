@@ -112,7 +112,7 @@ Notes: Support recognition of single audio file, as well as file list in Kaldi-s
 from funasr import AutoModel
 # paraformer-zh is a multi-functional asr model
 # use vad, punc, spk or not as you need
-model = AutoModel(model="paraformer-zh",  vad_model="fsmn-vad",  punc_model="ct-punc-c", 
+model = AutoModel(model="paraformer-zh",  vad_model="fsmn-vad",  punc_model="ct-punc", 
                   # spk_model="cam++", 
                   )
 res = model.generate(input=f"{model.model_path}/example/asr_example.wav", 
@@ -227,7 +227,7 @@ model = AutoModel(model="paraformer", device="cpu")
 res = model.export(quantize=False)
 ```
 
-### Text ONNX
+### Test ONNX
 ```python
 # pip3 install -U funasr-onnx
 from funasr_onnx import Paraformer

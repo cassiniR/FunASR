@@ -29,7 +29,7 @@ try:
     from funasr.models.campplus.utils import sv_chunk, postprocess, distribute_spk
     from funasr.models.campplus.cluster_backend import ClusterBackend
 except:
-    print("If you want to use the speaker diarization, please `pip install hdbscan`")
+    print("Notice: If you want to use the speaker diarization, please `pip install hdbscan`")
 
 
 def prepare_data_iterator(data_in, input_len=None, data_type=None, key=None):
@@ -68,7 +68,8 @@ def prepare_data_iterator(data_in, input_len=None, data_type=None, key=None):
                     data_list.append(data)
                     key_list.append(key)
         else:
-            key = "rand_key_" + ''.join(random.choice(chars) for _ in range(13))
+            if key is None:
+                key = "rand_key_" + ''.join(random.choice(chars) for _ in range(13))
             data_list = [data_in]
             key_list = [key]
     elif isinstance(data_in, (list, tuple)):
@@ -105,26 +106,32 @@ class AutoModel:
         
         # if vad_model is not None, build vad model else None
         vad_model = kwargs.get("vad_model", None)
-        vad_kwargs = kwargs.get("vad_model_revision", None)
+        vad_kwargs = {} if kwargs.get("vad_kwargs", {}) is None else kwargs.get("vad_kwargs", {})
         if vad_model is not None:
             logging.info("Building VAD model.")
-            vad_kwargs = {"model": vad_model, "model_revision": vad_kwargs, "device": kwargs["device"]}
+            vad_kwargs["model"] = vad_model
+            vad_kwargs["model_revision"] = kwargs.get("vad_model_revision", None)
+            vad_kwargs["device"] = kwargs["device"]
             vad_model, vad_kwargs = self.build_model(**vad_kwargs)
 
         # if punc_model is not None, build punc model else None
         punc_model = kwargs.get("punc_model", None)
-        punc_kwargs = kwargs.get("punc_model_revision", None)
+        punc_kwargs = {} if kwargs.get("punc_kwargs", {}) is None else kwargs.get("punc_kwargs", {})
         if punc_model is not None:
             logging.info("Building punc model.")
-            punc_kwargs = {"model": punc_model, "model_revision": punc_kwargs, "device": kwargs["device"]}
+            punc_kwargs["model"] = punc_model
+            punc_kwargs["model_revision"] = kwargs.get("punc_model_revision", None)
+            punc_kwargs["device"] = kwargs["device"]
             punc_model, punc_kwargs = self.build_model(**punc_kwargs)
 
         # if spk_model is not None, build spk model else None
         spk_model = kwargs.get("spk_model", None)
-        spk_kwargs = kwargs.get("spk_model_revision", None)
+        spk_kwargs = {} if kwargs.get("spk_kwargs", {}) is None else kwargs.get("spk_kwargs", {})
         if spk_model is not None:
             logging.info("Building SPK model.")
-            spk_kwargs = {"model": spk_model, "model_revision": spk_kwargs, "device": kwargs["device"]}
+            spk_kwargs["model"] = spk_model
+            spk_kwargs["model_revision"] = kwargs.get("spk_model_revision", None)
+            spk_kwargs["device"] = kwargs["device"]
             spk_model, spk_kwargs = self.build_model(**spk_kwargs)
             self.cb_model = ClusterBackend().to(kwargs["device"])
             spk_mode = kwargs.get("spk_mode", 'punc_segment')
@@ -162,27 +169,28 @@ class AutoModel:
         tokenizer = kwargs.get("tokenizer", None)
         if tokenizer is not None:
             tokenizer_class = tables.tokenizer_classes.get(tokenizer)
-            tokenizer_conf = kwargs.get("tokenizer_conf", {})
-            tokenizer = tokenizer_class(**tokenizer_conf)
-            kwargs["tokenizer"] = tokenizer
-
+            tokenizer = tokenizer_class(**kwargs.get("tokenizer_conf", {}))
             kwargs["token_list"] = tokenizer.token_list if hasattr(tokenizer, "token_list") else None
             kwargs["token_list"] = tokenizer.get_vocab() if hasattr(tokenizer, "get_vocab") else kwargs["token_list"]
             vocab_size = len(kwargs["token_list"]) if kwargs["token_list"] is not None else -1
         else:
             vocab_size = -1
+        kwargs["tokenizer"] = tokenizer
+        
         # build frontend
         frontend = kwargs.get("frontend", None)
         kwargs["input_size"] = None
         if frontend is not None:
             frontend_class = tables.frontend_classes.get(frontend)
-            frontend = frontend_class(**kwargs["frontend_conf"])
-            kwargs["frontend"] = frontend
+            frontend = frontend_class(**kwargs.get("frontend_conf", {}))
             kwargs["input_size"] = frontend.output_size() if hasattr(frontend, "output_size") else None
-        
+        kwargs["frontend"] = frontend
         # build model
         model_class = tables.model_classes.get(kwargs["model"])
-        model = model_class(**kwargs, **kwargs.get("model_conf", {}), vocab_size=vocab_size)
+        model_conf = {}
+        deep_update(model_conf, kwargs.get("model_conf", {}))
+        deep_update(model_conf, kwargs)
+        model = model_class(**model_conf, vocab_size=vocab_size)
         model.to(device)
         
         # init_param
@@ -290,7 +298,7 @@ class AutoModel:
         # step.2 compute asr model
         model = self.model
         deep_update(kwargs, cfg)
-        batch_size = int(kwargs.get("batch_size_s", 300))*1000
+        batch_size = max(int(kwargs.get("batch_size_s", 300))*1000, 1)
         batch_size_threshold_ms = int(kwargs.get("batch_size_threshold_s", 60))*1000
         kwargs["batch_size"] = batch_size
 
@@ -304,7 +312,8 @@ class AutoModel:
             key = res[i]["key"]
             vadsegments = res[i]["value"]
             input_i = data_list[i]
-            speech = load_audio_text_image_video(input_i, fs=kwargs["frontend"].fs, audio_fs=kwargs.get("fs", 16000))
+            fs = kwargs["frontend"].fs if hasattr(kwargs["frontend"], "fs") else 16000
+            speech = load_audio_text_image_video(input_i, fs=fs, audio_fs=kwargs.get("fs", 16000))
             speech_lengths = len(speech)
             n = len(vadsegments)
             data_with_index = [(vadsegments[i], i) for i in range(n)]
@@ -469,13 +478,19 @@ class AutoModel:
         #                      f"time_escape_all: {time_escape_total_all_samples:0.3f}")
         return results_ret_list
 
-    def export(self, input=None,
-               type : str = "onnx",
-               quantize: bool = False,
-               fallback_num: int = 5,
-               calib_num: int = 100,
-               opset_version: int = 14,
-               **cfg):
+    def export(self, input=None, **cfg):
+    
+        """
+        
+        :param input:
+        :param type:
+        :param quantize:
+        :param fallback_num:
+        :param calib_num:
+        :param opset_version:
+        :param cfg:
+        :return:
+        """
     
         device = cfg.get("device", "cpu")
         model = self.model.to(device=device)
@@ -485,7 +500,7 @@ class AutoModel:
         del kwargs["model"]
         model.eval()
 
-        batch_size = 1
+        type = kwargs.get("type", "onnx")
 
         key_list, data_list = prepare_data_iterator(input, input_len=None, data_type=kwargs.get("data_type", None), key=None)
 
@@ -495,19 +510,11 @@ class AutoModel:
                 export_dir = export_utils.export_onnx(
                                         model=model,
                                         data_in=data_list,
-                                        quantize=quantize,
-                                        fallback_num=fallback_num,
-                                        calib_num=calib_num,
-                                        opset_version=opset_version,
                                         **kwargs)
             else:
                 export_dir = export_utils.export_torchscripts(
                                         model=model,
                                         data_in=data_list,
-                                        quantize=quantize,
-                                        fallback_num=fallback_num,
-                                        calib_num=calib_num,
-                                        opset_version=opset_version,
                                         **kwargs)
 
         return export_dir
