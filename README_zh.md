@@ -15,7 +15,7 @@ FunASR希望在语音识别的学术研究和工业应用之间架起一座桥�
 ｜<a href="#最新动态"> 最新动态 </a>
 ｜<a href="#安装教程"> 安装 </a>
 ｜<a href="#快速开始"> 快速开始 </a>
-｜<a href="https://alibaba-damo-academy.github.io/FunASR/en/index.html"> 教程文档 </a>
+｜<a href="https://github.com/alibaba-damo-academy/FunASR/blob/main/docs/tutorial/README_zh.md"> 教程文档 </a>
 ｜<a href="#模型仓库"> 模型仓库 </a>
 ｜<a href="#服务部署"> 服务部署 </a>
 ｜<a href="#联系我们"> 联系我们 </a>
@@ -69,7 +69,7 @@ pip3 install -U modelscope
 
 ## 模型仓库
 
-FunASR开源了大量在工业数据上预训练模型，您可以在[模型许可协议](./MODEL_LICENSE)下自由使用、复制、修改和分享FunASR模型，下面列举代表性的模型，更多模型请参考[模型仓库]()。
+FunASR开源了大量在工业数据上预训练模型，您可以在[模型许可协议](./MODEL_LICENSE)下自由使用、复制、修改和分享FunASR模型，下面列举代表性的模型，更多模型请参考 [模型仓库](./model_zoo)。
 
 （注：⭐ 表示ModelScope模型仓库，🤗 表示Huggingface模型仓库，🍀表示OpenAI模型仓库）
 
@@ -91,7 +91,7 @@ FunASR开源了大量在工业数据上预训练模型，您可以在[模型许�
 <a name="快速开始"></a>
 ## 快速开始
 
-下面为快速上手教程，测试音频（[中文](https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/test_audio/vad_example.wav)，[英文]()）
+下面为快速上手教程，测试音频（[中文](https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/test_audio/vad_example.wav)，[英文](https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/test_audio/asr_example_en.wav)）
 
 ### 可执行命令行
 
@@ -208,7 +208,8 @@ text_file = f"{model.model_path}/example/text.txt"
 res = model.generate(input=(wav_file, text_file), data_type=("sound", "text"))
 print(res)
 ```
-更多详细用法（[示例](https://github.com/alibaba-damo-academy/FunASR/tree/main/examples/industrial_data_pretraining)）
+更详细（[用法](docs/tutorial/README_zh.md)），
+更多（[示例](https://github.com/alibaba-damo-academy/FunASR/tree/main/examples/industrial_data_pretraining)）
 
 ## 导出ONNX
 ### 从命令行导出

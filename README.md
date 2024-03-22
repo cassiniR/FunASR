@@ -14,6 +14,7 @@
 | [**News**](https://github.com/alibaba-damo-academy/FunASR#whats-new) 
 | [**Installation**](#installation)
 | [**Quick Start**](#quick-start)
+| [**Tutorial**](https://github.com/alibaba-damo-academy/FunASR/blob/main/docs/tutorial/README.md)
 | [**Runtime**](./runtime/readme.md)
 | [**Model Zoo**](#model-zoo)
 | [**Contact**](#contact)
@@ -67,7 +68,7 @@ pip3 install -U modelscope
 ```
 
 ## Model Zoo
-FunASR has open-sourced a large number of pre-trained models on industrial data. You are free to use, copy, modify, and share FunASR models under the [Model License Agreement](./MODEL_LICENSE). Below are some representative models, for more models please refer to the [Model Zoo]().
+FunASR has open-sourced a large number of pre-trained models on industrial data. You are free to use, copy, modify, and share FunASR models under the [Model License Agreement](./MODEL_LICENSE). Below are some representative models, for more models please refer to the [Model Zoo](./model_zoo).
 
 (Note: ⭐ represents the ModelScope model zoo, 🤗 represents the Huggingface model zoo, 🍀 represents the OpenAI model zoo)
 
@@ -97,7 +98,7 @@ FunASR has open-sourced a large number of pre-trained models on industrial data.
 <a name="quick-start"></a>
 ## Quick Start
 
-Below is a quick start tutorial. Test audio files ([Mandarin](https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/test_audio/vad_example.wav), [English]()).
+Below is a quick start tutorial. Test audio files ([Mandarin](https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/test_audio/vad_example.wav), [English](https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/test_audio/asr_example_en.wav)).
 
 ### Command-line usage
 

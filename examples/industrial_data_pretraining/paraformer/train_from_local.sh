@@ -11,7 +11,7 @@ echo "current path: ${workspace}" # /xxxx/funasr/examples/industrial_data_pretra
 local_path_root=${workspace}/modelscope_models
 mkdir -p ${local_path_root}
 local_path=${local_path_root}/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch
-git clone https://www.modelscope.cn/iic/speech_paraformer-large-contextual_asr_nat-zh-cn-16k-common-vocab8404.git ${local_path}
+git clone https://www.modelscope.cn/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch.git ${local_path}
 
 
 # which gpu to train or finetune
@@ -59,13 +59,17 @@ torchrun \
 --config-name "${config_name}" \
 ++train_data_set_list="${train_data}" \
 ++valid_data_set_list="${val_data}" \
+++dataset_conf.batch_size=20000 \
+++dataset_conf.batch_type="token" \
+++dataset_conf.num_workers=4 \
+++train_conf.max_epoch=50 \
+++train_conf.log_interval=10 \
+++train_conf.resume=false \
+++train_conf.validate_interval=15 \
+++train_conf.save_checkpoint_interval=15 \
+++train_conf.keep_nbest_models=50 \
+++optim_conf.lr=0.0002 \
+++init_param="${init_param}" \
 ++tokenizer_conf.token_list="${tokens}" \
 ++frontend_conf.cmvn_file="${cmvn_file}" \
-++dataset_conf.batch_size=32 \
-++dataset_conf.batch_type="example" \
-++dataset_conf.num_workers=4 \
-++train_conf.max_epoch=20 \
-++optim_conf.lr=0.0002 \
-++train_conf.log_interval=1 \
-++init_param="${init_param}" \
 ++output_dir="${output_dir}" &> ${log_file}
