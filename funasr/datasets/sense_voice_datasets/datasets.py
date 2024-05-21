@@ -2,7 +2,7 @@ import logging
 
 import torch
 import random
-
+import traceback
 from funasr.register import tables
 from funasr.utils.load_utils import extract_fbank, load_audio_text_image_video
 
@@ -53,6 +53,12 @@ class SenseVoiceDataset(torch.utils.data.Dataset):
         self.prompt_ids_len = 0
         self.retry = kwargs.get("retry", 5)
 
+        self.permute = False
+        from funasr.frontends.whisper_frontend import WhisperFrontend
+
+        if isinstance(self.frontend, WhisperFrontend):
+            self.permute = True
+
     def get_source_len(self, index):
         item = self.index_ds[index]
         return self.index_ds.get_source_len(item)
@@ -73,15 +79,17 @@ class SenseVoiceDataset(torch.utils.data.Dataset):
             if idx == 0:
                 index_cur = index
             else:
-                if index <= self.retry:
-                    index_cur = index + idx
-                else:
-                    index_cur = torch.randint(0, index, ()).item()
+                index_cur = torch.randint(0, len(self.index_ds), ()).item()
 
             item = self.index_ds[index_cur]
 
             source = item["source"]
-            data_src = load_audio_text_image_video(source, fs=self.fs)
+            try:
+                data_src = load_audio_text_image_video(source, fs=self.fs)
+            except Exception as e:
+                logging.error(f"Loading wav failed! {str(e)}, {traceback.format_exc()}")
+                continue
+
             if self.preprocessor_speech:
                 data_src = self.preprocessor_speech(data_src, fs=self.fs)
             speech, speech_lengths = extract_fbank(
@@ -90,7 +98,8 @@ class SenseVoiceDataset(torch.utils.data.Dataset):
 
             if speech_lengths > self.batch_size:
                 continue
-            speech = speech.permute(0, 2, 1)
+            if self.permute:
+                speech = speech.permute(0, 2, 1)
             target = item["target"]
             if self.preprocessor_text:
                 target = self.preprocessor_text(target)
@@ -98,8 +107,14 @@ class SenseVoiceDataset(torch.utils.data.Dataset):
             task = item.get("prompt", "<|ASR|>")
             text_language = item.get("text_language", "<|zh|>")
 
-            prompt = f"{self.sos}{task}{text_language}"
-            prompt_ids = self.tokenizer.encode(prompt, allowed_special="all")
+            if isinstance(self.sos, str):
+                prompt = f"{self.sos}{task}{text_language}"
+                prompt_ids = self.tokenizer.encode(prompt, allowed_special="all")
+            else:
+                prompt = f"{task}{text_language}"
+                prompt_ids = self.tokenizer.encode(prompt, allowed_special="all")
+                prompt_ids = [self.sos] + prompt_ids
+
             prompt_ids_len = len(prompt_ids) - 1  # [sos, task]
             self.prompt_ids_len = prompt_ids_len
 
@@ -108,9 +123,12 @@ class SenseVoiceDataset(torch.utils.data.Dataset):
             if target_ids_len > 200:
                 continue
 
-            eos = self.tokenizer.encode(self.eos, allowed_special="all")  # [eos]
+            if isinstance(self.eos, str):
+                eos = self.tokenizer.encode(self.eos, allowed_special="all")  # [eos]
+            else:
+                eos = [self.eos]
 
-            ids = prompt_ids + target_ids + eos
+            ids = prompt_ids + target_ids + eos  # [sos, task, lid, text, eos]
             ids_lengths = len(ids)
 
             text = torch.tensor(ids, dtype=torch.int64)
@@ -186,7 +204,7 @@ class SenseVoiceDataset(torch.utils.data.Dataset):
                 )
 
         if self.batch_type != "example":
-            for i in range(3):
+            for i in range(10):
                 outputs = self._filter_badcase(outputs, i=i)
 
         return outputs

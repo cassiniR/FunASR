@@ -6,9 +6,9 @@
 from funasr import AutoModel
 
 model = AutoModel(
-    model="/Users/zhifu/Downloads/modelscope_models/SenseVoiceModelscope",
-    # vad_model="iic/speech_fsmn_vad_zh-cn-16k-common-pytorch",
-    # vad_kwargs={"max_single_segment_time": 30000},
+    model="/Users/zhifu/Downloads/modelscope_models/SenseVoiceModelscopeFSMN",
+    vad_model="iic/speech_fsmn_vad_zh-cn-16k-common-pytorch",
+    vad_kwargs={"max_single_segment_time": 30000},
 )
 
 
@@ -24,5 +24,5 @@ DecodingOptions = {
     "beam_size": 5,
 }
 
-res = model.generate(input=input_wav, batch_size_s=0, DecodingOptions=DecodingOptions)
+res = model.generate(input=input_wav, batch_size_s=0, DecodingOptions=DecodingOptions, beam_size=5)
 print(res)
