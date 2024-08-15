@@ -2,13 +2,10 @@ import os
 import torch
 import functools
 
-try:
-    import torch_blade
-except Exception as e:
-    print(f"failed to load torch_blade: {e}")
 
-
-def export(model, data_in=None, quantize: bool = False, opset_version: int = 14, type='onnx', **kwargs):
+def export(
+    model, data_in=None, quantize: bool = False, opset_version: int = 14, type="onnx", **kwargs
+):
     model_scripts = model.export(**kwargs)
     export_dir = kwargs.get("output_dir", os.path.dirname(kwargs.get("init_param")))
     os.makedirs(export_dir, exist_ok=True)
@@ -17,23 +14,19 @@ def export(model, data_in=None, quantize: bool = False, opset_version: int = 14,
         model_scripts = (model_scripts,)
     for m in model_scripts:
         m.eval()
-        if type == 'onnx':
+        if type == "onnx":
             _onnx(
                 m,
                 data_in=data_in,
                 quantize=quantize,
                 opset_version=opset_version,
                 export_dir=export_dir,
-                **kwargs
+                **kwargs,
             )
-        elif type == 'torchscripts':
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        elif type == "torchscript":
+            device = "cuda" if torch.cuda.is_available() else "cpu"
             print("Exporting torchscripts on device {}".format(device))
-            _torchscripts(
-                m,
-                path=export_dir,
-                device=device
-            )
+            _torchscripts(m, path=export_dir, device=device)
         elif type == "bladedisc":
             assert (
                 torch.cuda.is_available()
@@ -54,14 +47,17 @@ def _onnx(
     quantize: bool = False,
     opset_version: int = 14,
     export_dir: str = None,
-    **kwargs
+    **kwargs,
 ):
 
     dummy_input = model.export_dummy_inputs()
 
     verbose = kwargs.get("verbose", False)
 
-    export_name = model.export_name + '.onnx'
+    if isinstance(model.export_name, str):
+        export_name = model.export_name + ".onnx"
+    else:
+        export_name = model.export_name()
     model_path = os.path.join(export_dir, export_name)
     torch.onnx.export(
         model,
@@ -79,39 +75,48 @@ def _onnx(
         import onnx
 
         quant_model_path = model_path.replace(".onnx", "_quant.onnx")
-        if not os.path.exists(quant_model_path):
-            onnx_model = onnx.load(model_path)
-            nodes = [n.name for n in onnx_model.graph.node]
-            nodes_to_exclude = [
-                m for m in nodes if "output" in m or "bias_encoder" in m or "bias_decoder" in m
-            ]
-            quantize_dynamic(
-                model_input=model_path,
-                model_output=quant_model_path,
-                op_types_to_quantize=["MatMul"],
-                per_channel=True,
-                reduce_range=False,
-                weight_type=QuantType.QUInt8,
-                nodes_to_exclude=nodes_to_exclude,
-            )
+        onnx_model = onnx.load(model_path)
+        nodes = [n.name for n in onnx_model.graph.node]
+        nodes_to_exclude = [
+            m for m in nodes if "output" in m or "bias_encoder" in m or "bias_decoder" in m
+        ]
+        print("Quantizing model from {} to {}".format(model_path, quant_model_path))
+        quantize_dynamic(
+            model_input=model_path,
+            model_output=quant_model_path,
+            op_types_to_quantize=["MatMul"],
+            per_channel=True,
+            reduce_range=False,
+            weight_type=QuantType.QUInt8,
+            nodes_to_exclude=nodes_to_exclude,
+        )
 
 
-def _torchscripts(model, path, device='cuda'):
+def _torchscripts(model, path, device="cuda"):
     dummy_input = model.export_dummy_inputs()
-
-    if device == 'cuda':
+    
+    if device == "cuda":
         model = model.cuda()
         if isinstance(dummy_input, torch.Tensor):
             dummy_input = dummy_input.cuda()
         else:
             dummy_input = tuple([i.cuda() for i in dummy_input])
-
+    
     model_script = torch.jit.trace(model, dummy_input)
-    model_script.save(os.path.join(path, f'{model.export_name}.torchscripts'))
+    if isinstance(model.export_name, str):
+        model_script.save(os.path.join(path, f"{model.export_name}".replace("onnx", "torchscript")))
+    else:
+        model_script.save(os.path.join(path, f"{model.export_name()}".replace("onnx", "torchscript")))
 
 
 def _bladedisc_opt(model, model_inputs, enable_fp16=True):
     model = model.eval()
+    try:
+        import torch_blade
+    except Exception as e:
+        print(
+            f"Warning, if you are exporting bladedisc, please install it and try it again: pip install -U torch_blade\n"
+        )
     torch_config = torch_blade.config.Config()
     torch_config.enable_fp16 = enable_fp16
     with torch.no_grad(), torch_config:
@@ -160,9 +165,7 @@ def _rescale_encoder_model(model, input_data):
     )
     for name, m in model.encoder.model.named_modules():
         if name.endswith("self_attn"):
-            m.register_forward_hook(
-                functools.partial(_rescale_output_hook, scale=fp16_scale)
-            )
+            m.register_forward_hook(functools.partial(_rescale_output_hook, scale=fp16_scale))
         if name.endswith("feed_forward.w_2"):
             state_dict = {k: v / fp16_scale for k, v in m.state_dict().items()}
             m.load_state_dict(state_dict)
@@ -196,4 +199,4 @@ def _bladedisc_opt_for_encdec(model, path, enable_fp16):
     model.encoder = _bladedisc_opt(model.encoder, input_data[:2])
     model.decoder = _bladedisc_opt(model.decoder, tuple(decoder_inputs))
     model_script = torch.jit.trace(model, input_data)
-    model_script.save(os.path.join(path, f"{model.export_name}_blade.torchscripts"))
+    model_script.save(os.path.join(path, f"{model.export_name}_blade.torchscript"))
