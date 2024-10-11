@@ -199,6 +199,7 @@ class AutoModel:
             tokenizers_build = []
             vocab_sizes = []
             token_lists = []
+
             ### === only for kws ===
             token_list_files = kwargs.get("token_lists", [])
             seg_dicts = kwargs.get("seg_dicts", [])
@@ -213,9 +214,9 @@ class AutoModel:
 
                 ### === only for kws ===
                 if len(token_list_files) > 1:
-                    tokenizer_conf.token_list = token_list_files[i]
+                    tokenizer_conf["token_list"] = token_list_files[i]
                 if len(seg_dicts) > 1:
-                    tokenizer_conf.seg_dict = seg_dicts[i]
+                    tokenizer_conf["seg_dict"] = seg_dicts[i]
                 ### === only for kws ===
 
                 tokenizer = tokenizer_class(**tokenizer_conf)
@@ -228,8 +229,8 @@ class AutoModel:
                 if token_list is not None:
                     vocab_size = len(token_list)
 
-                    if vocab_size == -1 and hasattr(tokenizer, "get_vocab_size"):
-                        vocab_size = tokenizer.get_vocab_size()
+                if vocab_size == -1 and hasattr(tokenizer, "get_vocab_size"):
+                    vocab_size = tokenizer.get_vocab_size()
                 token_lists.append(token_list)
                 vocab_sizes.append(vocab_size)
 
