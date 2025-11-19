@@ -107,7 +107,8 @@ def load_audio_text_image_video(
                     data_or_path_or_list
                 ).squeeze()  # [n_samples,]
         elif data_type == "text" and tokenizer is not None:
-            data_or_path_or_list = tokenizer.encode(data_or_path_or_list)
+            with open(data_or_path_or_list, "r") as f:
+                data_or_path_or_list = tokenizer.encode(f.read().strip())
         elif data_type == "image":  # undo
             pass
         elif data_type == "video":  # undo
@@ -240,10 +241,19 @@ def _load_audio_ffmpeg(file: str, sr: int = 16000):
     # This launches a subprocess to decode audio while down-mixing
     # and resampling as necessary.  Requires the ffmpeg CLI in PATH.
     # fmt: off
+    pcm_params = []
+    if file.lower().endswith('.pcm'):
+        pcm_params = [
+            "-f", "s16le",
+            "-ar", str(sr),
+            "-ac", "1"
+        ]
+
     cmd = [
         "ffmpeg",
         "-nostdin",
         "-threads", "0",
+        *pcm_params,  # PCM files need input format specified before -i since PCM is raw data without headers
         "-i", file,
         "-f", "s16le",
         "-ac", "1",

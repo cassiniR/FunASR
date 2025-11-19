@@ -9,7 +9,7 @@
 [![PyPI](https://img.shields.io/pypi/v/funasr)](https://pypi.org/project/funasr/)
 
 <p align="center">
-<a href="https://trendshift.io/repositories/3839" target="_blank"><img src="https://trendshift.io/api/badge/repositories/3839" alt="alibaba-damo-academy%2FFunASR | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/3839" target="_blank"><img src="https://trendshift.io/api/badge/repositories/3839" alt="modelscope%2FFunASR | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
 <strong>FunASR</strong> hopes to build a bridge between academic research and industrial applications on speech recognition. By supporting the training & finetuning of the industrial-grade speech recognition model, researchers and developers can conduct research and production of speech recognition models more conveniently, and promote the development of speech recognition ecology. ASR for Fun！
@@ -315,11 +315,16 @@ res = model.export(quantize=False)
 ### Test ONNX
 ```python
 # pip3 install -U funasr-onnx
-from funasr_onnx import Paraformer
+from pathlib import Path
+from runtime.python.onnxruntime.funasr_onnx.paraformer_bin import Paraformer
+
+
+home_dir = Path.home()
+
 model_dir = "damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch"
 model = Paraformer(model_dir, batch_size=1, quantize=True)
 
-wav_path = ['~/.cache/modelscope/hub/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch/example/asr_example.wav']
+wav_path = [f"{home_dir}/.cache/modelscope/hub/models/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch/example/asr_example.wav"]
 
 result = model(wav_path)
 print(result)
