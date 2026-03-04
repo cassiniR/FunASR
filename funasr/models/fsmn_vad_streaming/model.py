@@ -348,7 +348,7 @@ class FsmnVADStreaming(nn.Module):
 
 
     def ComputeScores(self, feats: torch.Tensor, cache: dict = {}) -> None:
-        scores = self.encoder(feats, cache=cache["encoder"]).to("cpu")  # return B * T * D
+        scores = self.encoder(feats, cache=cache["encoder"])  # return B * T * D
         assert (
             scores.shape[1] == feats.shape[1]
         ), "The shape between feats and scores does not match"
@@ -724,7 +724,7 @@ class FsmnVADStreaming(nn.Module):
             if len(segments_i) > 0:
                 segments.extend(*segments_i)
 
-        cache["prev_samples"] = audio_sample[:-m]
+        cache["prev_samples"] = audio_sample[-m:] if m > 0 else torch.empty(0)
         if _is_final:
             self.init_cache(cache)
 
